@@ -1,0 +1,136 @@
+{
+    "-profile test": {
+        "content": [
+            {
+                "CDHIT_CDHITEST": {
+                    "cdhit": "4.8.1"
+                },
+                "EEFINDER_ALIGN": {
+                    "bedtools": "2.27.1",
+                    "blast": "2.5.0",
+                    "eefinder": "2.0.0"
+                },
+                "EEFINDER_CLEAN": {
+                    "eefinder": "2.0.0"
+                },
+                "EEFINDER_FILTER": {
+                    "blast": "2.5.0",
+                    "eefinder": "2.0.0"
+                },
+                "EEFINDER_FLANKS": {
+                    "bedtools": "2.27.1",
+                    "eefinder": "2.0.0"
+                },
+                "EEFINDER_MERGE": {
+                    "bedtools": "2.27.1",
+                    "eefinder": "2.0.0"
+                },
+                "EEFINDER_POSTPROCESS": {
+                    "eefinder": "2.0.0"
+                },
+                "EEFINDER_PREPARE": {
+                    "blast": "2.5.0",
+                    "eefinder": "2.0.0"
+                },
+                "EEFINDER_TAXONOMY": {
+                    "eefinder": "2.0.0"
+                },
+                "EE_CLUSTER_TABLE": {
+                    "python": "3.12.2"
+                },
+                "Workflow": {
+                    "nf-core/evefinder": "v1.0.0dev"
+                }
+            },
+            [
+                "multiqc",
+                "multiqc/multiqc_data",
+                "multiqc/multiqc_data/llms-full.txt",
+                "multiqc/multiqc_data/multiqc.log",
+                "multiqc/multiqc_data/multiqc.parquet",
+                "multiqc/multiqc_data/multiqc_citations.txt",
+                "multiqc/multiqc_data/multiqc_data.json",
+                "multiqc/multiqc_data/multiqc_software_versions.txt",
+                "multiqc/multiqc_data/multiqc_sources.txt",
+                "multiqc/multiqc_report.html",
+                "pipeline_info",
+                "pipeline_info/nf_core_evefinder_software_mqc_versions.yml",
+                "screening",
+                "screening/Ae_aeg_Aag2_ctg_1913",
+                "screening/Ae_aeg_Aag2_ctg_1913/Ae_aeg_Aag2_ctg_1913.EEs.clusters.fa",
+                "screening/Ae_aeg_Aag2_ctg_1913/Ae_aeg_Aag2_ctg_1913.EEs.clusters.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/Ae_aeg_Aag2_ctg_1913.EEs.fa",
+                "screening/Ae_aeg_Aag2_ctg_1913/Ae_aeg_Aag2_ctg_1913.EEs.faa",
+                "screening/Ae_aeg_Aag2_ctg_1913/Ae_aeg_Aag2_ctg_1913.EEs.flanks.fa",
+                "screening/Ae_aeg_Aag2_ctg_1913/Ae_aeg_Aag2_ctg_1913.EEs.gff3",
+                "screening/Ae_aeg_Aag2_ctg_1913/Ae_aeg_Aag2_ctg_1913.EEs.tax.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.EEs.cdhit.fa.clstr",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.cleaned_genome.fa",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.cleaned_genome.lengths.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.ee_candidates.bed",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.ee_candidates.fa",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.ee_hits.filtered.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.ee_hits.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.ee_hits.validated.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.elements.fa",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.elements.tax.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.flanks.bed",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.flanks.slop.bed",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.host_hits.filtered.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.host_hits.tsv",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.merge.annotated.bed",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.merge.elements.bed",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.merge.merged.bed",
+                "screening/Ae_aeg_Aag2_ctg_1913/tmp_files/Ae_aeg_Aag2_ctg_1913.taxonomy_signature.csv",
+                "screening/Hsap_chr22_40kb",
+                "screening/Hsap_chr22_40kb/tmp_files",
+                "screening/Hsap_chr22_40kb/tmp_files/Hsap_chr22_40kb.cleaned_genome.fa",
+                "screening/Hsap_chr22_40kb/tmp_files/Hsap_chr22_40kb.ee_hits.tsv",
+                "screening/SARS-CoV-2",
+                "screening/SARS-CoV-2/tmp_files",
+                "screening/SARS-CoV-2/tmp_files/SARS-CoV-2.cleaned_genome.fa",
+                "screening/SARS-CoV-2/tmp_files/SARS-CoV-2.ee_hits.tsv",
+                "screening/skipped_genomes.tsv"
+            ],
+            [
+                "multiqc_citations.txt:md5,4c806e63a283ec1b7e78cdae3a923d4f",
+                "Ae_aeg_Aag2_ctg_1913.EEs.clusters.fa:md5,c4ddc4fcb9cd94f452ee923986d7cee0",
+                "Ae_aeg_Aag2_ctg_1913.EEs.clusters.tsv:md5,6fc080939de658b4012626cf4e1aa9ba",
+                "Ae_aeg_Aag2_ctg_1913.EEs.fa:md5,4add1376ccdc162edc7c7a3f4971efd2",
+                "Ae_aeg_Aag2_ctg_1913.EEs.faa:md5,c9ced31c6a7028ec046099005699d53d",
+                "Ae_aeg_Aag2_ctg_1913.EEs.flanks.fa:md5,52651bf667ee650829e83b0e62c03e8e",
+                "Ae_aeg_Aag2_ctg_1913.EEs.gff3:md5,8f8b5279b30ba863aa133e646dc12284",
+                "Ae_aeg_Aag2_ctg_1913.EEs.tax.tsv:md5,0cfaea4734e4f51a43ddf01951801209",
+                "Ae_aeg_Aag2_ctg_1913.EEs.cdhit.fa.clstr:md5,74604991fe81518f6688d480deebf054",
+                "Ae_aeg_Aag2_ctg_1913.cleaned_genome.fa:md5,74b7c55b2d9ecc45614d5e4db40dbbc0",
+                "Ae_aeg_Aag2_ctg_1913.cleaned_genome.lengths.tsv:md5,dccd0efedbe73ab7524749afb06e102e",
+                "Ae_aeg_Aag2_ctg_1913.ee_candidates.bed:md5,177629fe15266dd07264ab06a33737d9",
+                "Ae_aeg_Aag2_ctg_1913.ee_candidates.fa:md5,dc263a1ebd8f21403cb04f62977919b3",
+                "Ae_aeg_Aag2_ctg_1913.ee_hits.filtered.tsv:md5,ce7f72cd78077f5836d9e0f6070a9935",
+                "Ae_aeg_Aag2_ctg_1913.ee_hits.tsv:md5,026aa30b20a93fd36b934eae5372f01c",
+                "Ae_aeg_Aag2_ctg_1913.ee_hits.validated.tsv:md5,104078d76a5304d3bfaa5209009071b1",
+                "Ae_aeg_Aag2_ctg_1913.elements.fa:md5,4add1376ccdc162edc7c7a3f4971efd2",
+                "Ae_aeg_Aag2_ctg_1913.elements.tax.tsv:md5,0cfaea4734e4f51a43ddf01951801209",
+                "Ae_aeg_Aag2_ctg_1913.flanks.bed:md5,a03418bb9009086a3caeb7972dce8d86",
+                "Ae_aeg_Aag2_ctg_1913.flanks.slop.bed:md5,6a8a0e49734346bf802367fec55a9a2f",
+                "Ae_aeg_Aag2_ctg_1913.host_hits.filtered.tsv:md5,061b78b8b3232e596ff4e10ded5722bf",
+                "Ae_aeg_Aag2_ctg_1913.host_hits.tsv:md5,57dab7d6b65ccbbf2d18191fc1d2e455",
+                "Ae_aeg_Aag2_ctg_1913.merge.annotated.bed:md5,b7829f2961ea82a6dcae1d1da18606cc",
+                "Ae_aeg_Aag2_ctg_1913.merge.elements.bed:md5,68f111f7ebc24fa117a5b3fe89bd7e7a",
+                "Ae_aeg_Aag2_ctg_1913.merge.merged.bed:md5,41d4bbd1cd5cafdc6fb63ef4ec9a6782",
+                "Ae_aeg_Aag2_ctg_1913.taxonomy_signature.csv:md5,156682499104eee15eb8f132986dc5ad",
+                "Hsap_chr22_40kb.cleaned_genome.fa:md5,7023a51b0a991b2880836009089f3932",
+                "Hsap_chr22_40kb.ee_hits.tsv:md5,d41d8cd98f00b204e9800998ecf8427e",
+                "SARS-CoV-2.cleaned_genome.fa:md5,2cd9af46c8ca69a4648116ae5a1694e8",
+                "SARS-CoV-2.ee_hits.tsv:md5,d41d8cd98f00b204e9800998ecf8427e",
+                "skipped_genomes.tsv:md5,60e05b643a985d7f8648d8f25face8f1"
+            ]
+        ],
+        "timestamp": "2026-10-14T12:40:13.632383",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.3"
+        }
+    }
+}

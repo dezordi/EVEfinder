@@ -1,0 +1,57 @@
+nextflow_workflow {
+
+    name "Test Subworkflow PHYLOGENY"
+    script "../main.nf"
+    workflow "PHYLOGENY"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "phylogeny"
+
+    test("mashtree - 3 genomes") {
+
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    [ [ id:'Ae_aeg_Aag2_ctg_1913' ], file('https://raw.githubusercontent.com/dezordi/EEfinder/master/test_files/Ae_aeg_Aag2_ctg_1913.fasta', checkIfExists: true) ],
+                    [ [ id:'Hsap_chr22_40kb' ], file(params.modules_testdata_base_path + 'genomics/homo_sapiens/genome/genome.fasta', checkIfExists: true) ],
+                    [ [ id:'SARS-CoV-2' ], file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true) ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                // one leaf per sample, named after it
+                { assert path(workflow.out.tree[0]).text.contains('Hsap_chr22_40kb:') },
+                { assert snapshot(workflow.out.tree).match() }
+            )
+        }
+    }
+
+    test("mashtree - 2 genomes, skipped") {
+
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    [ [ id:'Hsap_chr22_40kb' ], file(params.modules_testdata_base_path + 'genomics/homo_sapiens/genome/genome.fasta', checkIfExists: true) ],
+                    [ [ id:'SARS-CoV-2' ], file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true) ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.tree.size() == 0 },
+                // not even the genomes are renamed
+                { assert workflow.trace.tasks().size() == 0 }
+            )
+        }
+    }
+}

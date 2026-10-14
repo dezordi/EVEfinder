@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/nf-core/evefinder/master/assets/schema_prepare_inputs.json",
+    "title": "nf-core/evefinder pipeline - params.input schema for --step prepare_inputs",
+    "description": "Genomes to download: one assembly accession (GCA_/GCF_) per row",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "accession": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Genome accession must be provided and cannot contain spaces",
+                "meta": ["id"]
+            },
+            "virus_taxid": {
+                "type": "integer",
+                "errorMessage": "Viral taxon id must be an integer",
+                "meta": ["virus_taxid"]
+            }
+        },
+        "required": ["accession"]
+    },
+    "uniqueEntries": ["accession"]
+}

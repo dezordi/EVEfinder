@@ -1,0 +1,90 @@
+{
+    "3 genomes, with a tree - stub": {
+        "content": [
+            {
+                "0": [
+                    "elements.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ],
+                "1": [
+                    "genomes.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ],
+                "2": [
+                    "phylogeny_heatmap.html:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ],
+                "3": [
+                    
+                ],
+                "4": [
+                    [
+                        {
+                            "id": "Ae_aeg_Aag2_ctg_1913"
+                        },
+                        "Ae_aeg_Aag2_ctg_1913.swarm.png:md5,d41d8cd98f00b204e9800998ecf8427e",
+                        "Ae_aeg_Aag2_ctg_1913.swarm.svg:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "elements": [
+                    "elements.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ],
+                "genomes": [
+                    "genomes.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ],
+                "heatmap": [
+                    "phylogeny_heatmap.html:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ],
+                "krona": [
+                    
+                ],
+                "swarm": [
+                    [
+                        {
+                            "id": "Ae_aeg_Aag2_ctg_1913"
+                        },
+                        "Ae_aeg_Aag2_ctg_1913.swarm.png:md5,d41d8cd98f00b204e9800998ecf8427e",
+                        "Ae_aeg_Aag2_ctg_1913.swarm.svg:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-10-13T21:44:46.497297",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.3"
+        }
+    },
+    "3 genomes, with a tree": {
+        "content": [
+            [
+                "elements.tsv:md5,82ce328f155e42af0cc716126f6200e2"
+            ],
+            [
+                "genomes.tsv:md5,55e0a8f5777a690e4e08d5d4a16a514f"
+            ],
+            [
+                "phylogeny_heatmap.html:md5,cf722c4b22ce3fa07500fc3925927d40"
+            ],
+            [
+                [
+                    {
+                        "id": "Ae_aeg_Aag2_ctg_1913"
+                    },
+                    "Ae_aeg_Aag2_ctg_1913.krona.html"
+                ]
+            ],
+            [
+                [
+                    {
+                        "id": "Ae_aeg_Aag2_ctg_1913"
+                    },
+                    "Ae_aeg_Aag2_ctg_1913.swarm.png:md5,f7594a5aab90d95cb9e28265f1ca79bc",
+                    "Ae_aeg_Aag2_ctg_1913.swarm.svg:md5,1ae918ef95be9c0909a37ec1906eef80"
+                ]
+            ]
+        ],
+        "timestamp": "2026-10-14T20:38:57.350596",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.3"
+        }
+    }
+}

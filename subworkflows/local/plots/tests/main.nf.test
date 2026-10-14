@@ -1,0 +1,96 @@
+nextflow_workflow {
+
+    name "Test Subworkflow PLOTS"
+    script "../main.nf"
+    workflow "PLOTS"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "plots"
+
+    // EEfinder's golden results for its test contig (42 elements, 20 NIRVs), and two
+    // genomes the screening left without elements
+    def ee = 'https://raw.githubusercontent.com/dezordi/EEfinder/master/test_files/expected_results/default/Ae_aeg_Aag2_ctg_1913.EEs'
+    def genomes = """
+        channel.of(
+            [ [ id:'Ae_aeg_Aag2_ctg_1913' ], [], file('${ee}.fa', checkIfExists: true), file('${ee}.tax.tsv', checkIfExists: true) ],
+            [ [ id:'Hsap_chr22_40kb' ], [], [], [] ],
+            [ [ id:'SARS-CoV-2' ], [], [], [] ]
+        )
+    """
+
+    test("3 genomes, with a tree") {
+
+        when {
+            workflow {
+                """
+                input[0] = ${genomes}
+                input[1] = channel.of('(Ae_aeg_Aag2_ctg_1913:0.5,(Hsap_chr22_40kb:0.2,SARS-CoV-2:0.2):0.3);').collectFile(name: 'genomes.nwk')
+                """
+            }
+        }
+
+        then {
+            def heatmap = path(workflow.out.heatmap[0]).text
+            assertAll(
+                { assert workflow.success },
+                // rows in the order of the tree's leaves
+                { assert heatmap.contains('"genomes":["Ae_aeg_Aag2_ctg_1913","Hsap_chr22_40kb","SARS-CoV-2"]') },
+                { assert heatmap.contains('"tree":{"x":') },
+                { assert path(workflow.out.genomes[0]).text == "sample\telements\nAe_aeg_Aag2_ctg_1913\t42\nHsap_chr22_40kb\t0\nSARS-CoV-2\t0\n" },
+                { assert path(workflow.out.krona[0][1]).text.contains('<dataset>NIRV</dataset>') },
+                { assert snapshot(
+                    workflow.out.elements,
+                    workflow.out.genomes,
+                    workflow.out.heatmap,
+                    // Krona writes the taxa in a different order each run (Perl hash order)
+                    workflow.out.krona.collect { meta, html -> [meta, file(html).name] },
+                    workflow.out.swarm
+                ).match() }
+            )
+        }
+    }
+
+    test("3 genomes, no tree") {
+
+        when {
+            workflow {
+                """
+                input[0] = ${genomes}
+                input[1] = channel.empty()
+                """
+            }
+        }
+
+        then {
+            def heatmap = path(workflow.out.heatmap[0]).text
+            assertAll(
+                { assert workflow.success },
+                { assert heatmap.contains('"tree":null') },
+                { assert workflow.out.krona.size() == 1 },
+                { assert workflow.out.swarm.size() == 1 }
+            )
+        }
+    }
+
+    test("3 genomes, with a tree - stub") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                input[0] = ${genomes}
+                input[1] = channel.of('(Ae_aeg_Aag2_ctg_1913:0.5,(Hsap_chr22_40kb:0.2,SARS-CoV-2:0.2):0.3);').collectFile(name: 'genomes.nwk')
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(workflow.out).match() }
+            )
+        }
+    }
+}

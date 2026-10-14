@@ -12,15 +12,22 @@
             "description": "Define where the pipeline should find input data and save output data.",
             "required": ["input", "outdir"],
             "properties": {
+                "step": {
+                    "type": "string",
+                    "default": "screening",
+                    "enum": ["prepare_inputs", "screening", "analysis"],
+                    "description": "Which part of the pipeline to run.",
+                    "help_text": "`prepare_inputs` downloads the genomes, host baits and viral database and writes the samplesheet for `screening`; `screening` runs every `eefinder screening` stage on each genome and clusters its elements; `analysis` builds the genome phylogeny and the plots from a finished screening (`--screening_outdir`).",
+                    "fa_icon": "fas fa-route"
+                },
                 "input": {
                     "type": "string",
                     "format": "file-path",
                     "exists": true,
-                    "schema": "assets/schema_input.json",
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
-                    "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row. See [usage docs](https://nf-co.re/evefinder/usage#samplesheet-input).",
+                    "description": "Path to the samplesheet: genome accessions for `--step prepare_inputs`, genomes and references for `--step screening` and `--step analysis`.",
+                    "help_text": "`--step prepare_inputs`: columns `accession` and optional `virus_taxid`. `--step screening`: columns `sample,taxid,genome,baits,db_fasta,db_metadata` (written by `--step prepare_inputs`). See the [usage docs](https://nf-co.re/evefinder/usage#samplesheet-input).",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
@@ -230,11 +237,330 @@
                     "description": "Display hidden parameters in the help message (only works when --help or --help_full are provided)."
                 }
             }
+        },
+        "prepare_inputs_options": {
+            "title": "Prepare inputs options",
+            "type": "object",
+            "fa_icon": "fas fa-download",
+            "description": "Options for `--step prepare_inputs`.",
+            "properties": {
+                "genome_source": {
+                    "type": "string",
+                    "default": "ncbi",
+                    "enum": ["ncbi", "ena"],
+                    "description": "Where to download the genomes from.",
+                    "help_text": "`ncbi` uses the NCBI Datasets API (GCA_/GCF_, FASTA + GFF3 when annotated); `ena` uses the ENA browser API (GCA_ only, FASTA only).",
+                    "fa_icon": "fas fa-database"
+                },
+                "download_virus_db": {
+                    "type": "boolean",
+                    "description": "Download the viral protein database with `eefinder get-databases virus`.",
+                    "help_text": "One database per distinct `virus_taxid` in the samplesheet; rows without one (or no such column) use eefinder's default taxon (10239, Viruses).",
+                    "fa_icon": "fas fa-virus"
+                },
+                "virus_db_release_date": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "description": "Only include viral data released on or before this date (YYYY-MM-DD). Default: today.",
+                    "fa_icon": "fas fa-calendar"
+                },
+                "virus_db_fasta": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Local viral protein database FASTA, used instead of downloading one.",
+                    "fa_icon": "fas fa-file"
+                },
+                "virus_db_metadata": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.csv$",
+                    "description": "Metadata CSV of `--virus_db_fasta`.",
+                    "fa_icon": "fas fa-file-csv"
+                }
+            }
+        },
+        "screening_options": {
+            "title": "Screening options",
+            "type": "object",
+            "fa_icon": "fas fa-search",
+            "description": "`eefinder screening` options, used by `--step screening`.",
+            "properties": {
+                "search_mode": {
+                    "type": "string",
+                    "default": "blastx",
+                    "enum": [
+                        "blastx",
+                        "fast",
+                        "mid-sensitive",
+                        "sensitive",
+                        "more-sensitive",
+                        "very-sensitive",
+                        "ultra-sensitive"
+                    ],
+                    "description": "Similarity search: BLAST (`blastx`) or a DIAMOND sensitivity (eefinder `-md`).",
+                    "fa_icon": "fas fa-search"
+                },
+                "translation_method": {
+                    "type": "string",
+                    "default": "default",
+                    "enum": ["default", "gv", "rv", "gv-rv"],
+                    "description": "How proteins are obtained for the searches (eefinder `-tm`).",
+                    "fa_icon": "fas fa-dna"
+                },
+                "min_length": {
+                    "type": "integer",
+                    "default": 10000,
+                    "description": "Minimum contig length kept by `clean` (`-ln`).",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "range_junction": {
+                    "type": "integer",
+                    "default": 100,
+                    "description": "Range for joining redundant hits in `align`/`filter` (`-rj`).",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "merge_limit": {
+                    "type": "integer",
+                    "default": 1,
+                    "description": "Distance in bases for bedtools merge in `merge` (`-lm`).",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "merge_level": {
+                    "type": "string",
+                    "description": "Taxonomy level used to merge elements (`-ml`).",
+                    "fa_icon": "fas fa-sitemap",
+                    "default": "family",
+                    "enum": ["family", "genus"]
+                },
+                "clean_masked": {
+                    "type": "boolean",
+                    "description": "Remove elements in soft-masked (repetitive) regions (`-cm`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "mask_per": {
+                    "type": "integer",
+                    "default": 50,
+                    "description": "Percentage of lowercase bases above which an element is considered repetitive (`-mp`).",
+                    "fa_icon": "fas fa-percent"
+                },
+                "overlap": {
+                    "type": "string",
+                    "description": "What to do with overlapping elements (`-ov`).",
+                    "fa_icon": "fas fa-layer-group",
+                    "default": "keep",
+                    "enum": ["keep", "longest", "targets"]
+                },
+                "target_families": {
+                    "type": "string",
+                    "description": "Comma-separated families to KEEP with `--overlap targets` (`-tf`).",
+                    "fa_icon": "fas fa-font"
+                },
+                "non_target_families": {
+                    "type": "string",
+                    "description": "Comma-separated families to DROP with `--overlap targets` (`-ntf`).",
+                    "fa_icon": "fas fa-font"
+                },
+                "analysis": {
+                    "type": "string",
+                    "description": "Type of endogenous elements; sets the GFF3 feature type (`-an`).",
+                    "fa_icon": "fas fa-virus",
+                    "default": "virus",
+                    "enum": ["virus", "bacteria"]
+                },
+                "flank": {
+                    "type": "integer",
+                    "default": 10000,
+                    "description": "Length of the flanking regions extracted around each element (`-fl`).",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "removetmp": {
+                    "type": "boolean",
+                    "description": "Do not publish the intermediate files to `tmp_files/` (`-rm`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "eefinder_debug": {
+                    "type": "boolean",
+                    "description": "Run every eefinder command with `--debug`.",
+                    "fa_icon": "fas fa-bug"
+                },
+                "skip_clustering": {
+                    "type": "boolean",
+                    "description": "Do not cluster the elements of each genome (cd-hit-est).",
+                    "fa_icon": "fas fa-forward"
+                },
+                "cluster_tool": {
+                    "type": "string",
+                    "default": "cdhit",
+                    "enum": ["cdhit", "vclust"],
+                    "description": "Tool clustering each genome's elements.",
+                    "help_text": "`cdhit` (cd-hit-est, greedy from the longest element) or `vclust` (prefilter, align and cluster with `--algorithm cd-hit`; identity is the ANI of the aligned regions). Both write the same table.",
+                    "fa_icon": "fas fa-object-group"
+                },
+                "cluster_identity": {
+                    "type": "number",
+                    "default": 0.8,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Minimum identity of an element to its cluster representative (cd-hit-est `-c`, 0.8 at least; vclust `--ani`).",
+                    "fa_icon": "fas fa-percentage"
+                },
+                "cluster_coverage": {
+                    "type": "number",
+                    "default": 0.8,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Minimum alignment coverage of both the element and its representative (cd-hit-est `-aS`/`-aL`, vclust `--qcov`/`--rcov`).",
+                    "fa_icon": "fas fa-percentage"
+                }
+            }
+        },
+        "get_databases_options": {
+            "title": "Get-databases options",
+            "type": "object",
+            "fa_icon": "fas fa-cloud-download-alt",
+            "description": "`eefinder get-databases host`/`virus` options, used by `--step prepare_inputs`.",
+            "properties": {
+                "getdb_attempts": {
+                    "type": "integer",
+                    "default": 3,
+                    "description": "Download attempts before giving up (`--attempts`).",
+                    "fa_icon": "fas fa-hashtag"
+                },
+                "getdb_stall_timeout": {
+                    "type": "integer",
+                    "default": 180,
+                    "description": "Seconds without progress before a download is retried; 0 waits forever (`--stall-timeout`).",
+                    "fa_icon": "fas fa-hashtag"
+                },
+                "getdb_keep_download": {
+                    "type": "boolean",
+                    "description": "Keep the downloaded zip and extracted ncbi_dataset directory (`--keep-download`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "host_refseq": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Host baits: RefSeq only; false fetches all sequences (`--refseq/--all-sequences`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "host_cluster": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Host baits: collapse 100%-identical proteins with cd-hit (`--cluster/--no-cluster`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "host_exclude_uninformative": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Host baits: drop hypothetical/uncharacterized proteins (`--exclude-uninformative`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "host_exclude_taxon": {
+                    "type": "string",
+                    "description": "Host baits: comma-separated taxa to leave out (`--exclude-taxon`).",
+                    "fa_icon": "fas fa-font"
+                },
+                "host_max_rank": {
+                    "type": "string",
+                    "default": "order",
+                    "enum": ["species", "genus", "family", "order", "class", "phylum", "kingdom"],
+                    "description": "Host baits: a host with no annotated assembly gets the proteins of its closest annotated relative (species, genus, family...), searched up to this rank.",
+                    "fa_icon": "fas fa-sitemap"
+                },
+                "virus_db_refseq": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Viral database: RefSeq only; false fetches all sequences (`--refseq/--all-sequences`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "virus_db_cluster": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Viral database: collapse 100%-identical proteins with cd-hit (`--cluster/--no-cluster`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "virus_db_exclude_uninformative": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Viral database: drop hypothetical/uncharacterized proteins (`--exclude-uninformative`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "virus_db_standardize_proteins": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Viral database: standardize protein names (`--standardize-proteins/--raw-proteins`).",
+                    "fa_icon": "fas fa-toggle-on"
+                },
+                "virus_db_exclude_taxon": {
+                    "type": "string",
+                    "description": "Viral database: comma-separated taxa to leave out (`--exclude-taxon`). Default: eefinder's (2697049, SARS-CoV-2); 'none' disables it.",
+                    "fa_icon": "fas fa-font"
+                },
+                "virus_db_split_level": {
+                    "type": "string",
+                    "description": "Viral database: one request per taxon at this rank (`--split-level`).",
+                    "fa_icon": "fas fa-sitemap",
+                    "default": "family",
+                    "enum": ["family", "genus", "none"]
+                },
+                "virus_db_include_unranked": {
+                    "type": "boolean",
+                    "description": "Viral database: also download subtrees with no taxon at the split level (`--include-unranked`).",
+                    "fa_icon": "fas fa-toggle-on"
+                }
+            }
+        },
+        "analysis_options": {
+            "title": "Analysis options",
+            "type": "object",
+            "fa_icon": "fas fa-project-diagram",
+            "description": "Options for `--step analysis`, run on the results of `--step screening`.",
+            "properties": {
+                "screening_outdir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "exists": true,
+                    "description": "The `--outdir` of the `--step screening` run to analyse.",
+                    "help_text": "`--step analysis` reads `<screening_outdir>/screening/<sample>/<sample>.EEs.{fa,tax.tsv}` for every sample of `--input`. A sample without them must be listed in `screening/skipped_genomes.tsv`.",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "skip_phylogeny": {
+                    "type": "boolean",
+                    "description": "Do not build the genome phylogeny.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "skip_plots": {
+                    "type": "boolean",
+                    "description": "Do not make the plots.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "swarm_top_proteins": {
+                    "type": "integer",
+                    "default": 12,
+                    "minimum": 1,
+                    "description": "Proteins coloured in each genome's swarm plot; the others are grey (`Other`).",
+                    "fa_icon": "fas fa-palette"
+                }
+            }
         }
     },
     "allOf": [
         {
             "$ref": "#/$defs/input_output_options"
+        },
+        {
+            "$ref": "#/$defs/prepare_inputs_options"
+        },
+        {
+            "$ref": "#/$defs/get_databases_options"
+        },
+        {
+            "$ref": "#/$defs/screening_options"
+        },
+        {
+            "$ref": "#/$defs/analysis_options"
         },
         {
             "$ref": "#/$defs/reference_genome_options"

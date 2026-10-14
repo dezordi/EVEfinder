@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://raw.githubusercontent.com/nf-core/evefinder/master/assets/schema_input.json",
-    "title": "nf-core/evefinder pipeline - params.input schema",
-    "description": "Schema for the file provided with params.input",
+    "title": "nf-core/evefinder pipeline - params.input schema for --step screening",
+    "description": "Genomes to screen and their references; --step prepare_inputs writes this samplesheet",
     "type": "array",
     "items": {
         "type": "object",
@@ -13,21 +13,38 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
-            "fastq_1": {
-                "type": "string",
-                "format": "file-path",
-                "exists": true,
-                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 1 must be provided, cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+            "taxid": {
+                "type": "integer",
+                "errorMessage": "Host taxon id must be an integer",
+                "meta": ["taxid"]
             },
-            "fastq_2": {
+            "genome": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
-                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+                "errorMessage": "Genome FASTA must be provided and exist"
+            },
+            "baits": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "errorMessage": "Host protein baits FASTA must be provided and exist"
+            },
+            "db_fasta": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "errorMessage": "Viral protein database FASTA must be provided and exist"
+            },
+            "db_metadata": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\.csv$",
+                "errorMessage": "Viral protein metadata CSV must be provided, exist and end in '.csv'"
             }
         },
-        "required": ["sample", "fastq_1"]
-    }
+        "required": ["sample", "genome", "baits", "db_fasta", "db_metadata"]
+    },
+    "uniqueEntries": ["sample"]
 }

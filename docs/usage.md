@@ -6,58 +6,159 @@
 
 ## Introduction
 
-<!-- TODO nf-core: Add documentation about anything specific to running your pipeline. For general topics, please point to (and add to) the main nf-core website. -->
+The pipeline runs in three steps, chosen with `--step`: `prepare_inputs` downloads the genomes, the host baits and the viral database; `screening` finds the endogenous viral elements (EVEs) of each genome with EEfinder and clusters them; `analysis` builds the genome phylogeny and plots the EVEs of every genome. Each step reads the output of the one before it.
 
 ## Samplesheet input
 
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
+`--input` takes a different samplesheet for each `--step`.
+
+### `--step prepare_inputs`
+
+```csv title="genomes.csv"
+accession,virus_taxid
+GCA_021653915.1,11050
+GCF_000146045.2,
+```
+
+| Column        | Description                                                                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `accession`   | Assembly accession (`GCA_`/`GCF_`). Downloaded from NCBI (FASTA + GFF3) or, with `--genome_source ena`, from ENA (FASTA; `GCA_` only).                                         |
+| `virus_taxid` | Optional. With `--download_virus_db true`, one viral database is downloaded per distinct value; empty cells (or no such column) use EEfinder's default taxon (10239, Viruses). |
+
+The host baits are downloaded once per host taxon, read from the genome's NCBI/ENA record. A host with no annotated assembly (RefSeq, unless `host_refseq: false`) gets the proteins of its closest annotated relative: its species, then genus, family and so on up to `--host_max_rank` (default `order`). The choice is logged as a warning and recorded in `prepare_inputs/host_baits/host_taxa.tsv`. The viral database is either downloaded (`--download_virus_db true`, filtered with `--virus_db_release_date`, which defaults to today) or given with `--virus_db_fasta` + `--virus_db_metadata`.
+
+Outputs go to `<OUTDIR>/prepare_inputs/{genomes,host_baits,virus_db}/`, plus `<OUTDIR>/prepare_inputs/samplesheet.csv` for the next step. The paths in it assume the default publishing configuration.
+
+### `--step screening`
+
+```csv title="samplesheet.csv"
+sample,taxid,genome,baits,db_fasta,db_metadata
+GCA_021653915.1,7159,/path/genome.fna,/path/host_7159.fa,/path/virus_11050.fa,/path/virus_11050.csv
+```
+
+| Column        | Description                                                    |
+| ------------- | -------------------------------------------------------------- |
+| `sample`      | Sample name, also the EEfinder prefix (`PREFIX.EEs.*`).        |
+| `taxid`       | Host taxon id.                                                 |
+| `genome`      | Genome FASTA.                                                  |
+| `baits`       | Host protein baits FASTA (`eefinder get-databases host`).      |
+| `db_fasta`    | Viral protein database FASTA (`eefinder get-databases virus`). |
+| `db_metadata` | Its metadata CSV.                                              |
+
+Results go to `<OUTDIR>/screening/<sample>/`: `<sample>.EEs.{fa,tax.tsv,gff3,flanks.fa}` (+ `.cleaned.*` with `--clean_masked true`, and `tmp_outputs/` with `--overlap longest|targets`), and the intermediates under `tmp_files/` unless `--removetmp true`.
+
+Each genome's elements are then clustered (`--skip_clustering true` to skip it), with `--cluster_tool cdhit` (default; cd-hit-est) or `vclust` (vclust prefilter, align and cluster with `--algorithm cd-hit`). An element joins a cluster when it has at least `--cluster_identity` identity (default `0.8`; the lowest cd-hit-est allows, vclust takes lower) to the representative, and the alignment covers at least `--cluster_coverage` (default `0.8`) of both sequences. The representative is the longest element of its cluster. The identity is cd-hit-est's alignment identity, or vclust's ANI, which counts the aligned regions only, so the two tools can group the same elements differently. A genome with a single element is one cluster (vclust is not run on it, as it cannot align a single sequence). Either tool writes `<sample>.EEs.clusters.fa` (the representatives) and `<sample>.EEs.clusters.tsv`, and its own output goes to `tmp_files/`:
+
+| Column                    | Description                                                    |
+| ------------------------- | -------------------------------------------------------------- |
+| `sample`                  | Sample the element comes from.                                 |
+| `sequence_id`             | Element name, as in `<sample>.EEs.fa`.                         |
+| `length`                  | Element length (nt).                                           |
+| `cluster_id`              | `<sample>_cl<N>`, numbered from the longest representative.    |
+| `is_representative`       | `true` for the cluster's representative.                       |
+| `representative_id`       | The representative's `sequence_id`.                            |
+| `identity`                | % identity to the representative (100 for the representative). |
+| `member_coverage`         | % of the element covered by the alignment.                     |
+| `representative_coverage` | % of the representative covered by the alignment.              |
+
+A genome left with no element is not an error: when its search finds no viral hit, or every viral hit matches a host bait better (all removed by `filter`), the run warns (`<sample>: no viral hits, left out of the rest of the screening`), lists it with the reason in `<OUTDIR>/screening/skipped_genomes.tsv` and screens the other genomes. A search that fails (a crash, or DIAMOND or BLAST killed for lack of memory) still stops the run, with the failing command and its exit status in the task's error.
+
+### `--step analysis`
+
+Takes the samplesheet of a `--step screening` run and that run's `--outdir` as `--screening_outdir`, and reads `<screening_outdir>/screening/<sample>/<sample>.EEs.{fa,tax.tsv}` for every sample. A sample without them must be in `screening/skipped_genomes.tsv`, and counts as a genome without elements; otherwise the run stops, as the screening of that sample has not run.
+
+The step builds a phylogeny of every genome of the samplesheet with [mashtree](https://github.com/lskatz/mashtree), including those without elements (`--skip_phylogeny true` to skip it; with fewer than 3 genomes it is skipped with a warning). Each leaf is named after its `sample`. It is neighbour joining on Mash distances: it takes minutes and needs no database, but it is a distance tree, good for ordering close genomes and weak on deep relationships.
+
+The step then plots the elements (`--skip_plots true` to skip it). A NIRV is an element of a non-retroviral RNA virus: its molecule type has `RNA` and does not end in `-RT`, so `ssRNA-RT` and every DNA virus (`dsDNA-RT` included) are left out.
+
+- `plots/phylogeny_heatmap.html`: the tree beside a heatmap of the number of elements of each genome (rows, in the tree's order, or alphabetical without a tree) per taxon (columns). It opens offline, recounts when the taxonomic level (realm to genus), the molecule types or the NIRV-only switch change, and the plot's toolbar downloads the current view as PNG or SVG.
+- `plots/<sample>/<sample>.krona.html`, per genome with elements: a Krona chart of the elements' taxonomy, with one dataset of every element, one per molecule type and one of the NIRVs (molecule types are named without brackets or slashes, e.g. `ssRNA+`).
+- `plots/<sample>/<sample>.swarm.{png,svg}`, per genome with elements: family against length, coloured by protein (the first protein of an element hitting several), one panel per molecule type and one of the NIRVs. The `--swarm_top_proteins` (default `12`) most frequent proteins of the genome get a colour each, the others are grey (`Other`).
+
+Check the setup with `-profile test_analysis` on the `--outdir` of a `-profile test` run: it reads that run's results (three genomes, one of them with elements: a mashtree tree, and the plots of the genome with elements).
+
+## Analysis modes
+
+Everything below is a `--step screening` parameter, so the same `prepare_inputs` samplesheet can be screened in several ways. Write each run to its own `--outdir`. Changing a search option makes `-resume` rerun everything after `clean`.
+
+### Similarity search (`--search_mode`)
+
+Sets the index type (BLAST or DIAMOND) and the search of `align` and `filter` (EEfinder `-md`). `prepare_inputs` indexes the databases it downloads for this search, beside each FASTA; `screening` reuses an index found beside a FASTA and builds a missing one once per database/baits set, so a local database is best indexed beforehand (`eefinder get-databases -md`, or a first `eefinder screening prepare`).
+
+| Value                                                                                       | Search                                                                          |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `blastx` (default)                                                                          | BLAST. The reference path: its outputs match EEfinder's golden files.           |
+| `fast`, `mid-sensitive`, `sensitive`, `more-sensitive`, `very-sensitive`, `ultra-sensitive` | DIAMOND at that sensitivity, from fastest to most sensitive. Faster than BLAST. |
 
 ```bash
---input '[path to samplesheet file]'
+nextflow run nf-core/evefinder -profile local,docker \
+   --step screening \
+   --input results/prepare_inputs/samplesheet.csv \
+   --outdir results_diamond_fast \
+   --search_mode fast
 ```
 
-### Multiple runs of the same sample
+> [!NOTE]
+> EEfinder discards DIAMOND's stderr, so a failed search shows up in the task error only as the DIAMOND command and its exit status. The container ships DIAMOND 2.0.15, the version EEfinder pins.
+>
+> DIAMOND needs far more memory than BLAST on chromosome-scale contigs. A coral genome with ~38 Mb contigs, screened against the full RefSeq viral database (1.8 billion residues), was killed by the out-of-memory killer at 12 GB. `align` then fails with `diamond blastx ... exited with status 137`. Give `align` more memory, or use `blastx`.
 
-The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
+### Translation (`--translation_method`)
 
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz
+How the proteins compared against the databases are obtained, for both the viral and the host-bait searches (EEfinder `-tm`). Combine with any `--search_mode`.
+
+| Value               | Proteins                                                                   |
+| ------------------- | -------------------------------------------------------------------------- |
+| `default` (default) | Six-frame translation: `blastx` or `diamond blastx`.                       |
+| `gv`                | Genes predicted with pyrodigal-gv, aligned with `blastp`/`diamond blastp`. |
+| `rv`                | Genes predicted with pyrodigal-rv.                                         |
+| `gv-rv`             | Both predictions, merged with cd-hit (100% identity/coverage).             |
+
+The prediction modes map the protein coordinates back to the genome, so the outputs keep the same format.
+
+```yaml title="diamond_gv.yml"
+step: screening
+input: results/prepare_inputs/samplesheet.csv
+outdir: results_diamond_gv
+search_mode: sensitive
+translation_method: gv-rv
 ```
 
-### Full samplesheet
+### Endogenous viral or bacterial elements (`--analysis`)
 
-The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the first 3 columns to match those defined in the table below.
+`--analysis virus` (default) or `bacteria` sets the GFF3 feature type (`endogenous_viral_element` or `endogenous_bacterial_element`). The elements found depend on the protein database in the samplesheet: `prepare_inputs` only downloads viral databases, so for bacteria build one with `eefinder get-databases bacteria` and pass it as `--virus_db_fasta`/`--virus_db_metadata` (or write the `db_fasta`/`db_metadata` columns by hand), then screen with `--analysis bacteria`.
 
-A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
+### Candidate and element filters
 
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz
-CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz
-TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,
-TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
+| Parameter                                     | Default        | Effect                                                                                                                               |
+| --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `--min_length`                                | `10000`        | Contigs shorter than this are left out of the search (`clean`, `-ln`).                                                               |
+| `--range_junction`                            | `100`          | Distance in bases for joining redundant hits (`align`/`filter`, `-rj`).                                                              |
+| `--merge_limit`                               | `1`            | Distance in bases for merging neighbouring elements (`merge`, `-lm`).                                                                |
+| `--merge_level`                               | `family`       | Merge only elements with the same `family` or `genus` (`-ml`).                                                                       |
+| `--clean_masked` / `--mask_per`               | `false` / `50` | Also write `.EEs.cleaned.*` without elements whose sequence is more than `mask_per`% lowercase (soft-masked repeats).                |
+| `--overlap`                                   | `keep`         | Overlapping elements: `keep` all, keep the `longest` of each overlap, or keep only `targets`. Dropped elements go to `tmp_outputs/`. |
+| `--target_families` / `--non_target_families` | none           | With `--overlap targets`: comma-separated families to keep, or to drop (`Retroviridae,Metaviridae`). Only one of the two.            |
+| `--flank`                                     | `10000`        | Length of the flanking regions written to `.EEs.flanks.fa` (`-fl`).                                                                  |
+| `--removetmp`                                 | `false`        | Do not publish `tmp_files/`.                                                                                                         |
+| `--eefinder_debug`                            | `false`        | Pass `--debug` to every EEfinder command.                                                                                            |
+
+```yaml title="targets.yml"
+step: screening
+input: results/prepare_inputs/samplesheet.csv
+outdir: results_flavi
+overlap: targets
+target_families: "Flaviviridae,Rhabdoviridae"
+clean_masked: true
 ```
-
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-
-An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 
 ## Running the pipeline
 
-The typical command for running the pipeline is as follows:
+The pipeline runs in two steps:
 
 ```bash
-nextflow run nf-core/evefinder --input ./samplesheet.csv --outdir ./results --genome GRCh37 -profile docker
+nextflow run nf-core/evefinder -profile docker -params-file prepare.yml
+nextflow run nf-core/evefinder -profile docker --step screening --input ./results/prepare_inputs/samplesheet.csv --outdir ./results
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
@@ -87,9 +188,10 @@ nextflow run nf-core/evefinder -profile docker -params-file params.yaml
 with:
 
 ```yaml title="params.yaml"
-input: './samplesheet.csv'
+step: screening
+input: './results/prepare_inputs/samplesheet.csv'
 outdir: './results/'
-genome: 'GRCh37'
+search_mode: fast
 <...>
 ```
 
@@ -153,7 +255,7 @@ If `-profile` is not specified, the pipeline will run locally and expect all sof
 - `apptainer`
   - A generic configuration profile to be used with [Apptainer](https://apptainer.org/)
 - `wave`
-  - A generic configuration profile to enable [Wave](https://seqera.io/wave/) containers. Use together with one of the above (requires Nextflow ` 24.03.0-edge` or later).
+  - A generic configuration profile to enable [Wave](https://seqera.io/wave/) containers. Use together with one of the above (requires Nextflow `24.03.0-edge` or later).
 - `conda`
   - A generic configuration profile to be used with [Conda](https://conda.io/docs/). Please only use Conda as a last resort i.e. when it's not possible to run the pipeline with Docker, Singularity, Podman, Shifter, Charliecloud, or Apptainer.
 

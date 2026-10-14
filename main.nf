@@ -52,6 +52,7 @@ workflow NFCORE_EVEFINDER {
     //
     EVEFINDER (
         samplesheet,
+        params.step,
         params.multiqc_config,
         params.multiqc_logo,
         params.multiqc_methods_description,

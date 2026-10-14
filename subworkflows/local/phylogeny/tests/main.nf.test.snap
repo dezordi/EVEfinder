@@ -1,0 +1,14 @@
+{
+    "mashtree - 3 genomes": {
+        "content": [
+            [
+                "genomes.dnd:md5,465a61b1c4568fc3337cbf66e3c9aaba"
+            ]
+        ],
+        "timestamp": "2026-10-13T21:43:10.352346",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.3"
+        }
+    }
+}

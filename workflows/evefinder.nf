@@ -3,7 +3,9 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-include { FASTQC                 } from '../modules/nf-core/fastqc/main'
+include { PREPARE_INPUTS         } from '../subworkflows/local/prepare_inputs'
+include { SCREENING              } from '../subworkflows/local/screening'
+include { ANALYSIS               } from '../subworkflows/local/analysis'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -20,6 +22,7 @@ workflow EVEFINDER {
 
     take:
     ch_samplesheet // channel: samplesheet read in from --input
+    step           // string: 'prepare_inputs', 'screening' or 'analysis'
     multiqc_config
     multiqc_logo
     multiqc_methods_description
@@ -29,11 +32,25 @@ workflow EVEFINDER {
 
     def ch_versions = channel.empty()
     def ch_multiqc_files = channel.empty()
-    //
-    // MODULE: Run FastQC
-    //
-    FASTQC(ch_samplesheet)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.map{ _meta, file -> file })
+    if (step == 'prepare_inputs') {
+        PREPARE_INPUTS(
+            ch_samplesheet,
+            params.genome_source,
+            params.download_virus_db,
+            params.virus_db_release_date,
+            params.virus_db_fasta,
+            params.virus_db_metadata,
+            params.host_refseq,
+            params.host_max_rank,
+            outdir,
+        )
+    }
+    else if (step == 'analysis') {
+        ANALYSIS(ch_samplesheet, params.screening_outdir, params.skip_phylogeny, params.skip_plots)
+    }
+    else {
+        SCREENING(ch_samplesheet, params.outdir, params.skip_clustering, params.cluster_tool, params.cluster_identity)
+    }
 
     //
     // Collate and save software versions
@@ -46,6 +63,8 @@ workflow EVEFINDER {
         }
 
     def topic_versions_string = topic_versions.versions_tuple
+        // empty: a tool the task's options did not run
+        .filter { _process, _tool, version -> version }
         .map { process, tool, version ->
             [ process[process.lastIndexOf(':')+1..-1], "  ${tool}: ${version}" ]
         }
