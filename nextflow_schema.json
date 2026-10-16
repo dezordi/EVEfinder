@@ -362,13 +362,6 @@
                     "description": "Comma-separated families to DROP with `--overlap targets` (`-ntf`).",
                     "fa_icon": "fas fa-font"
                 },
-                "analysis": {
-                    "type": "string",
-                    "description": "Type of endogenous elements; sets the GFF3 feature type (`-an`).",
-                    "fa_icon": "fas fa-virus",
-                    "default": "virus",
-                    "enum": ["virus", "bacteria"]
-                },
                 "flank": {
                     "type": "integer",
                     "default": 10000,

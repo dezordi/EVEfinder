@@ -6,7 +6,10 @@
 
 ## Introduction
 
-The pipeline runs in three steps, chosen with `--step`: `prepare_inputs` downloads the genomes, the host baits and the viral database; `screening` finds the endogenous viral elements (EVEs) of each genome with EEfinder and clusters them; `analysis` builds the genome phylogeny and plots the EVEs of every genome. Each step reads the output of the one before it.
+The pipeline runs in three steps, chosen with `--step`:
+- `prepare_inputs` downloads the genomes, the host baits and the viral database
+- `screening` finds the endogenous viral elements (EVEs) of each genome with EEfinder and clusters them
+- `analysis` builds the genome phylogeny and plots the EVEs of every genome. Each step reads the output of the one before it.
 
 ## Samplesheet input
 
@@ -67,12 +70,12 @@ A genome left with no element is not an error: when its search finds no viral hi
 
 Takes the samplesheet of a `--step screening` run and that run's `--outdir` as `--screening_outdir`, and reads `<screening_outdir>/screening/<sample>/<sample>.EEs.{fa,tax.tsv}` for every sample. A sample without them must be in `screening/skipped_genomes.tsv`, and counts as a genome without elements; otherwise the run stops, as the screening of that sample has not run.
 
-The step builds a phylogeny of every genome of the samplesheet with [mashtree](https://github.com/lskatz/mashtree), including those without elements (`--skip_phylogeny true` to skip it; with fewer than 3 genomes it is skipped with a warning). Each leaf is named after its `sample`. It is neighbour joining on Mash distances: it takes minutes and needs no database, but it is a distance tree, good for ordering close genomes and weak on deep relationships.
+The step builds a phylogeny of every genome of the samplesheet with [mashtree](https://github.com/lskatz/mashtree), including those without elements (`--skip_phylogeny true` to skip it; with fewer than 3 genomes it is skipped with a warning). Each leaf is named after its `sample`. It is neighbour joining on Mash distances.
 
-The step then plots the elements (`--skip_plots true` to skip it). A NIRV is an element of a non-retroviral RNA virus: its molecule type has `RNA` and does not end in `-RT`, so `ssRNA-RT` and every DNA virus (`dsDNA-RT` included) are left out.
+The step then plots the elements (`--skip_plots true` to skip it). A NIRV is an element of a non-retroviral RNA virus: its molecule type has `RNA` and does not end in `-RT`, so `ssRNA-RT` and every DNA virus are left out.
 
-- `plots/phylogeny_heatmap.html`: the tree beside a heatmap of the number of elements of each genome (rows, in the tree's order, or alphabetical without a tree) per taxon (columns). It opens offline, recounts when the taxonomic level (realm to genus), the molecule types or the NIRV-only switch change, and the plot's toolbar downloads the current view as PNG or SVG.
-- `plots/<sample>/<sample>.krona.html`, per genome with elements: a Krona chart of the elements' taxonomy, with one dataset of every element, one per molecule type and one of the NIRVs (molecule types are named without brackets or slashes, e.g. `ssRNA+`).
+- `plots/phylogeny_heatmap.html`: the tree beside a heatmap of the number of elements of each genome (rows, in the tree's order, or alphabetical without a tree) per taxon (columns).
+- `plots/<sample>/<sample>.krona.html`, per genome with elements: a Krona chart of the elements' taxonomy, with one dataset of every element, one per molecule type and one of the NIRVs.
 - `plots/<sample>/<sample>.swarm.{png,svg}`, per genome with elements: family against length, coloured by protein (the first protein of an element hitting several), one panel per molecule type and one of the NIRVs. The `--swarm_top_proteins` (default `12`) most frequent proteins of the genome get a colour each, the others are grey (`Other`).
 
 Check the setup with `-profile test_analysis` on the `--outdir` of a `-profile test` run: it reads that run's results (three genomes, one of them with elements: a mashtree tree, and the plots of the genome with elements).
@@ -98,11 +101,6 @@ nextflow run nf-core/evefinder -profile local,docker \
    --search_mode fast
 ```
 
-> [!NOTE]
-> EEfinder discards DIAMOND's stderr, so a failed search shows up in the task error only as the DIAMOND command and its exit status. The container ships DIAMOND 2.0.15, the version EEfinder pins.
->
-> DIAMOND needs far more memory than BLAST on chromosome-scale contigs. A coral genome with ~38 Mb contigs, screened against the full RefSeq viral database (1.8 billion residues), was killed by the out-of-memory killer at 12 GB. `align` then fails with `diamond blastx ... exited with status 137`. Give `align` more memory, or use `blastx`.
-
 ### Translation (`--translation_method`)
 
 How the proteins compared against the databases are obtained, for both the viral and the host-bait searches (EEfinder `-tm`). Combine with any `--search_mode`.
@@ -123,10 +121,6 @@ outdir: results_diamond_gv
 search_mode: sensitive
 translation_method: gv-rv
 ```
-
-### Endogenous viral or bacterial elements (`--analysis`)
-
-`--analysis virus` (default) or `bacteria` sets the GFF3 feature type (`endogenous_viral_element` or `endogenous_bacterial_element`). The elements found depend on the protein database in the samplesheet: `prepare_inputs` only downloads viral databases, so for bacteria build one with `eefinder get-databases bacteria` and pass it as `--virus_db_fasta`/`--virus_db_metadata` (or write the `db_fasta`/`db_metadata` columns by hand), then screen with `--analysis bacteria`.
 
 ### Candidate and element filters
 
@@ -162,17 +156,6 @@ nextflow run nf-core/evefinder -profile docker --step screening --input ./result
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
-
-Note that the pipeline will create the following files in your working directory:
-
-```bash
-work                # Directory containing the nextflow working files
-<OUTDIR>            # Finished results in specified location (defined with --outdir)
-.nextflow_log       # Log file from Nextflow
-# Other nextflow hidden files, eg. history of pipeline runs and old logs.
-```
-
-If you wish to repeatedly use the same parameters for multiple runs, rather than specifying each flag in the command, you can specify these in a params file.
 
 Pipeline settings can be provided in a `yaml` or `json` file via `-params-file <file>`.
 

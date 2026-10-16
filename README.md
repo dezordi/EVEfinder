@@ -21,12 +21,12 @@
 
 ## Introduction
 
-**nf-core/evefinder** finds Endogenous Viral Elements (EVEs) in eukaryotic genomes with [EEfinder](https://github.com/WallauBioinfo/EEfinder), running every `eefinder screening` stage as its own process, one genome at a time.
+**nf-core/evefinder** finds Endogenous Viral Elements (EVEs) in eukaryotic genomes with [EEfinder](https://github.com/WallauBioinfo/EEfinder).
 
 The pipeline has three steps (`--step`):
 
 1. `prepare_inputs`: downloads each genome (NCBI Datasets API, FASTA + GFF3, or ENA browser API, FASTA), the host protein baits (`eefinder get-databases host`, taxon taken from the genome) and, optionally, the viral protein database (`eefinder get-databases virus`), both indexed for `--search_mode`, and writes the samplesheet for `screening`.
-2. `screening`: validates each database/metadata/baits set (`eefinder screening prepare`, which reuses the indexes beside the FASTAs and builds the missing ones), then runs `eefinder screening clean → align → filter → taxonomy → merge → postprocess → flanks` per genome, publishing `PREFIX.EEs.{fa,tax.tsv,gff3,faa,flanks.fa}` (the GFF3 with the CDS of each element, and their proteins), and clusters each genome's elements (cd-hit-est or vclust).
+2. `screening`: validates each database/metadata/baits inputs, then runs `eefinder screening clean → align → filter → taxonomy → merge → postprocess → flanks` per genome, publishing `PREFIX.EEs.{fa,tax.tsv,gff3,faa,flanks.fa}` (the GFF3 with the CDS of each element, and their proteins), and clusters each genome's elements (cd-hit-est or vclust).
 3. `analysis`: reads a finished screening and builds the genome phylogeny (mashtree) and the plots: an interactive HTML of the tree beside the elements per genome and taxon, and a Krona chart and a swarm plot per genome.
 
 ## Usage
@@ -34,7 +34,7 @@ The pipeline has three steps (`--step`):
 > [!NOTE]
 > If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/get_started/environment_setup/overview) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/get_started/run-your-first-pipeline) with `-profile test` before running the workflow on actual data.
 
-First, list the genomes (`virus_taxid` is optional: one viral database is downloaded per distinct value, and rows without one use EEfinder's default, 10239):
+First, list the genomes (`virus_taxid` is optional: one viral database is downloaded per distinct value, and rows without one use EEfinder's default, 10239 which represents all virus on NCBI taxonomy):
 
 ```csv
 accession,virus_taxid
@@ -124,11 +124,6 @@ If you would like to contribute to this pipeline, please see the [contributing g
 For further information or help, don't hesitate to get in touch on the [Slack `#evefinder` channel](https://nfcore.slack.com/channels/evefinder) (you can join with [this invite](https://nf-co.re/join/slack)).
 
 ## Citations
-
-<!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
-<!-- If you use nf-core/evefinder for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
-
-<!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 
