@@ -63,13 +63,20 @@ workflow SCREENING {
         .filter { _meta, hits -> hits == 'none' }
         .map { meta, _hits -> [meta.id, 'no viral hits'] }
 
+    // With -tm gv/rv/gv-rv, the proteins align predicted on the genome, [] otherwise.
+    // A genome without candidates has a row of its proteins only, which is dropped.
+    def ch_candidates = EEFINDER_ALIGN.out.candidates
+        .join(EEFINDER_ALIGN.out.proteins, remainder: true)
+        .filter { row -> row.size() == 4 }
+        .map { meta, candidates, hits, proteins -> [meta, candidates, hits, proteins ?: []] }
+
     EEFINDER_FILTER(
-        EEFINDER_ALIGN.out.candidates
+        ch_candidates
             .join(ch_baits)
             .join(ch_sets)
-            .map { meta, candidates, hits, baits, set_key -> [set_key, meta, candidates, hits, baits] }
+            .map { meta, candidates, hits, proteins, baits, set_key -> [set_key, meta, candidates, hits, proteins, baits] }
             .combine(EEFINDER_PREPARE.out.baits_index.map { meta, index -> [meta.key, index] }, by: 0)
-            .map { _set_key, meta, candidates, hits, baits, index -> [meta, candidates, hits, baits, index] }
+            .map { _set_key, meta, candidates, hits, proteins, baits, index -> [meta, candidates, hits, proteins, baits, index] }
     )
 
     // Header only: every candidate matched a host bait better

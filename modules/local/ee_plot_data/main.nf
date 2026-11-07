@@ -7,7 +7,7 @@ process EE_PLOT_DATA {
 
     input:
     // every sample, and the EEs.{fa,tax.tsv} of those with elements
-    tuple val(samples), path(fastas, stageAs: 'eefinder/*'), path(taxonomies, stageAs: 'eefinder/*')
+    tuple val(samples), val(labels), path(fastas, stageAs: 'eefinder/*'), path(taxonomies, stageAs: 'eefinder/*')
 
     output:
     path "elements.tsv", emit: elements
@@ -22,6 +22,7 @@ process EE_PLOT_DATA {
     """
     ee_plot_data.py \\
         --samples ${samples.collect { sample -> "'${sample}'" }.join(' ')} \\
+        --labels ${labels.collect { label -> "'${label}'" }.join(' ')} \\
         --dir eefinder
     """
 

@@ -1,5 +1,5 @@
 //
-// Genome tree, one leaf per sample: mashtree
+// Genome tree, one leaf per sample (named meta.label, or the sample): mashtree
 //
 
 include { RENAME_GENOME } from '../../../modules/local/rename_genome/main'

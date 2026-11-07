@@ -112,17 +112,18 @@ workflow PREPARE_INPUTS {
     def ch_samplesheet_out = ch_genomes
         .map { meta, _genome, genome_path -> [meta.taxid, meta, genome_path] }
         .combine(ch_baits, by: 0)
-        .map { _taxid, meta, genome_path, baits_path ->
-            [download_virus_db && meta.virus_taxid ? meta.virus_taxid.toString() : '', meta, genome_path, baits_path]
+        .combine(RESOLVE_HOST_TAXON.out.lineage, by: 0)
+        .map { _taxid, meta, genome_path, baits_path, organism, taxonomy ->
+            [download_virus_db && meta.virus_taxid ? meta.virus_taxid.toString() : '', meta, organism, taxonomy, genome_path, baits_path]
         }
         .combine(ch_virus_db, by: 0)
-        .map { _key, meta, genome_path, baits_path, db_fasta, db_metadata ->
-            [meta.id, meta.taxid, genome_path, baits_path, db_fasta, db_metadata].join(',')
+        .map { _key, meta, organism, taxonomy, genome_path, baits_path, db_fasta, db_metadata ->
+            [meta.id, meta.taxid, organism, taxonomy, genome_path, baits_path, db_fasta, db_metadata].join(',')
         }
         .collectFile(
             name: 'samplesheet.csv',
             storeDir: "${outdir}/prepare_inputs",
-            seed: 'sample,taxid,genome,baits,db_fasta,db_metadata',
+            seed: 'sample,taxid,species,taxonomy,genome,baits,db_fasta,db_metadata',
             newLine: true,
             sort: true,
         )

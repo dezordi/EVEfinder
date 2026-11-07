@@ -46,7 +46,7 @@ workflow EVEFINDER {
         )
     }
     else if (step == 'analysis') {
-        ANALYSIS(ch_samplesheet, params.screening_outdir, params.skip_phylogeny, params.skip_plots)
+        ANALYSIS(ch_samplesheet, params.screening_outdir, params.skip_phylogeny, params.phylogeny_tree, params.skip_plots)
     }
     else {
         SCREENING(ch_samplesheet, params.outdir, params.skip_clustering, params.cluster_tool, params.cluster_identity)

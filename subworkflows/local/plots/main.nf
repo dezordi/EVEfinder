@@ -19,6 +19,7 @@ workflow PLOTS {
         .map { genomes ->
             [
                 genomes.collect { meta, _genome, _fasta, _taxonomy -> meta.id },
+                genomes.collect { meta, _genome, _fasta, _taxonomy -> meta.label ?: meta.id },
                 genomes.collect { _meta, _genome, fasta, _taxonomy -> fasta }.findAll(),
                 genomes.collect { _meta, _genome, _fasta, taxonomy -> taxonomy }.findAll(),
             ]
@@ -46,5 +47,5 @@ workflow PLOTS {
     genomes  = EE_PLOT_DATA.out.genomes     // path: genomes.tsv
     heatmap  = EE_PHYLO_HEATMAP.out.html    // path: phylogeny_heatmap.html
     krona    = KRONA_KTIMPORTTEXT.out.html  // channel: [ meta, krona.html ]
-    swarm    = EE_SWARMPLOT.out.plots       // channel: [ meta, swarm.png, swarm.svg ]
+    swarm    = EE_SWARMPLOT.out.html        // channel: [ meta, swarm.html ]
 }

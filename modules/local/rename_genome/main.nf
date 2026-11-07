@@ -1,4 +1,4 @@
-// Link a genome as <sample>.fa[.gz], so tree leaves are named after the sample
+// Link a genome as <label>.fa[.gz] (meta.label, or the sample), so tree leaves are named after it
 process RENAME_GENOME {
     tag "${meta.id}"
     label 'process_single'
@@ -15,13 +15,13 @@ process RENAME_GENOME {
     task.ext.when == null || task.ext.when
 
     script:
-    name = "${meta.id}.fa${genome.name.endsWith('.gz') ? '.gz' : ''}"
+    name = "${meta.label ?: meta.id}.fa${genome.name.endsWith('.gz') ? '.gz' : ''}"
     """
     ln -s ${genome} ${name}
     """
 
     stub:
-    name = "${meta.id}.fa${genome.name.endsWith('.gz') ? '.gz' : ''}"
+    name = "${meta.label ?: meta.id}.fa${genome.name.endsWith('.gz') ? '.gz' : ''}"
     """
     touch ${name}
     """

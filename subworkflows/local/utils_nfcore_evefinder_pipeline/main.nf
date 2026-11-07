@@ -234,6 +234,7 @@ def toolReferences() {
         seqkit: ["SeqKit (Shen et al. 2016)", "Shen W, Le S, Li Y, Hu F. (2016) SeqKit: a cross-platform and ultrafast toolkit for FASTA/Q file manipulation. PLoS One 11(10):e0163962. doi: 10.1371/journal.pone.0163962"],
         blast: ["BLAST+ (Camacho et al. 2009)", "Camacho C, et al. (2009) BLAST+: architecture and applications. BMC Bioinformatics 10:421. doi: 10.1186/1471-2105-10-421"],
         diamond: ["DIAMOND (Buchfink et al. 2015)", "Buchfink B, Xie C, Huson DH. (2015) Fast and sensitive protein alignment using DIAMOND. Nat Methods 12(1):59-60. doi: 10.1038/nmeth.3176"],
+        mmseqs2: ["MMseqs2 (Steinegger and Söding 2017)", "Steinegger M, Söding J. (2017) MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nat Biotechnol 35(11):1026-1028. doi: 10.1038/nbt.3988"],
         bedtools: ["BEDTools (Quinlan and Hall 2010)", "Quinlan AR, Hall IM. (2010) BEDTools: a flexible suite of utilities for comparing genomic features. Bioinformatics 26(6):841-2. doi: 10.1093/bioinformatics/btq033"],
         cdhit: ["CD-HIT (Fu et al. 2012)", "Fu L, Niu B, Zhu Z, Wu S, Li W. (2012) CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28(23):3150-2. doi: 10.1093/bioinformatics/bts565"],
         vclust: ["Vclust (Zielezinski et al. 2025)", "Zielezinski A, et al. (2025) Ultrafast and accurate sequence alignment and clustering of viral genomes. Nat Methods. doi: 10.1038/s41592-025-02701-7"],
@@ -243,8 +244,6 @@ def toolReferences() {
         biopython: ["Biopython (Cock et al. 2009)", "Cock PJA, et al. (2009) Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics 25(11):1422-3. doi: 10.1093/bioinformatics/btp163"],
         pandas: ["pandas (McKinney 2010)", "McKinney W. (2010) Data structures for statistical computing in Python. Proceedings of the 9th Python in Science Conference, 56-61. doi: 10.25080/Majora-92bf1922-00a"],
         plotly: ["Plotly (Plotly Technologies Inc. 2015)", "Plotly Technologies Inc. (2015) Collaborative data science. Montréal, QC. URL: https://plot.ly"],
-        matplotlib: ["Matplotlib (Hunter 2007)", "Hunter JD. (2007) Matplotlib: A 2D graphics environment. Comput Sci Eng 9(3):90-95. doi: 10.1109/MCSE.2007.55"],
-        seaborn: ["seaborn (Waskom 2021)", "Waskom ML. (2021) seaborn: statistical data visualization. J Open Source Softw 6(60):3021. doi: 10.21105/joss.03021"],
         multiqc: ["MultiQC (Ewels et al. 2016)", "Ewels P, Magnusson M, Lundin S, Käller M. (2016) MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics 32(19):3047-3048. doi: 10.1093/bioinformatics/btw354"],
     ]
 }
@@ -256,17 +255,17 @@ def toolsUsed() {
         tools += ['datasets', 'seqkit', 'eefinder', 'cdhit']
     }
     else if (params.step == 'screening') {
-        tools += ['eefinder', params.search_mode == 'diamond' ? 'diamond' : 'blast', 'bedtools']
+        tools += ['eefinder', [blastx: 'blast', mmseqs: 'mmseqs2'].get(params.search_mode, 'diamond'), 'bedtools']
         if (!params.skip_clustering) {
             tools += [params.cluster_tool]
         }
     }
     else if (params.step == 'analysis') {
-        if (!params.skip_phylogeny) {
+        if (!params.skip_phylogeny && !params.phylogeny_tree) {
             tools += ['mashtree', 'mash']
         }
         if (!params.skip_plots) {
-            tools += ['krona', 'biopython', 'pandas', 'plotly', 'matplotlib', 'seaborn']
+            tools += ['krona', 'biopython', 'pandas', 'plotly']
         }
     }
     return (tools + ['multiqc']).unique()

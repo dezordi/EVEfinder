@@ -7,6 +7,7 @@
 ## Introduction
 
 The pipeline runs in three steps, chosen with `--step`:
+
 - `prepare_inputs` downloads the genomes, the host baits and the viral database
 - `screening` finds the endogenous viral elements (EVEs) of each genome with EEfinder and clusters them
 - `analysis` builds the genome phylogeny and plots the EVEs of every genome. Each step reads the output of the one before it.
@@ -35,18 +36,20 @@ Outputs go to `<OUTDIR>/prepare_inputs/{genomes,host_baits,virus_db}/`, plus `<O
 ### `--step screening`
 
 ```csv title="samplesheet.csv"
-sample,taxid,genome,baits,db_fasta,db_metadata
-GCA_021653915.1,7159,/path/genome.fna,/path/host_7159.fa,/path/virus_11050.fa,/path/virus_11050.csv
+sample,taxid,species,taxonomy,genome,baits,db_fasta,db_metadata
+GCA_021653915.1,7159,Aedes aegypti,r__Eukaryota;k__Metazoa;p__Arthropoda;c__Insecta;o__Diptera;f__Culicidae;g__Aedes;s__Aedes aegypti,/path/genome.fna,/path/host_7159.fa,/path/virus_11050.fa,/path/virus_11050.csv
 ```
 
-| Column        | Description                                                    |
-| ------------- | -------------------------------------------------------------- |
-| `sample`      | Sample name, also the EEfinder prefix (`PREFIX.EEs.*`).        |
-| `taxid`       | Host taxon id.                                                 |
-| `genome`      | Genome FASTA.                                                  |
-| `baits`       | Host protein baits FASTA (`eefinder get-databases host`).      |
-| `db_fasta`    | Viral protein database FASTA (`eefinder get-databases virus`). |
-| `db_metadata` | Its metadata CSV.                                              |
+| Column        | Description                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `sample`      | Sample name, also the EEfinder prefix (`PREFIX.EEs.*`).                                           |
+| `taxid`       | Host taxon id.                                                                                    |
+| `species`     | Host species name (optional): the tree and the heatmap name the genome `<Species_name>_<sample>`. |
+| `taxonomy`    | Host lineage, in EEfinder's format (optional).                                                    |
+| `genome`      | Genome FASTA.                                                                                     |
+| `baits`       | Host protein baits FASTA (`eefinder get-databases host`).                                         |
+| `db_fasta`    | Viral protein database FASTA (`eefinder get-databases virus`).                                    |
+| `db_metadata` | Its metadata CSV.                                                                                 |
 
 Results go to `<OUTDIR>/screening/<sample>/`: `<sample>.EEs.{fa,tax.tsv,gff3,flanks.fa}` (+ `.cleaned.*` with `--clean_masked true`, and `tmp_outputs/` with `--overlap longest|targets`), and the intermediates under `tmp_files/` unless `--removetmp true`.
 
@@ -70,13 +73,13 @@ A genome left with no element is not an error: when its search finds no viral hi
 
 Takes the samplesheet of a `--step screening` run and that run's `--outdir` as `--screening_outdir`, and reads `<screening_outdir>/screening/<sample>/<sample>.EEs.{fa,tax.tsv}` for every sample. A sample without them must be in `screening/skipped_genomes.tsv`, and counts as a genome without elements; otherwise the run stops, as the screening of that sample has not run.
 
-The step builds a phylogeny of every genome of the samplesheet with [mashtree](https://github.com/lskatz/mashtree), including those without elements (`--skip_phylogeny true` to skip it; with fewer than 3 genomes it is skipped with a warning). Each leaf is named after its `sample`. It is neighbour joining on Mash distances.
+The step builds a phylogeny of every genome of the samplesheet with [mashtree](https://github.com/lskatz/mashtree), including those without elements (`--skip_phylogeny true` to skip it; with fewer than 3 genomes it is skipped with a warning). Each leaf is named after its `sample`. It is neighbour joining on Mash distances. To use a tree of your own instead (a gene or species tree, say), pass it as `--phylogeny_tree <file.nwk>`: mashtree does not run, and the tree is only plotted (not copied to `phylogeny/`). Its leaves must be named after the `sample` or the label (`<Species_name>_<sample>`); genomes missing from it are listed below the tree in the heatmap, with a warning.
 
 The step then plots the elements (`--skip_plots true` to skip it). A NIRV is an element of a non-retroviral RNA virus: its molecule type has `RNA` and does not end in `-RT`, so `ssRNA-RT` and every DNA virus are left out.
 
-- `plots/phylogeny_heatmap.html`: the tree beside a heatmap of the number of elements of each genome (rows, in the tree's order, or alphabetical without a tree) per taxon (columns).
+- `plots/phylogeny_heatmap.html`: the tree beside a heatmap of the number of elements of each genome (rows, in the tree's order, or alphabetical without a tree) per taxon (columns). Right of the plot, a menu chooses the taxonomic level (family by default) and checkboxes the virus groups whose elements are counted: each molecule type (all ticked by default) and `NIRV`. An element is counted when any of its groups is ticked, so `NIRV` alone shows the NIRVs only.
 - `plots/<sample>/<sample>.krona.html`, per genome with elements: a Krona chart of the elements' taxonomy, with one dataset of every element, one per molecule type and one of the NIRVs.
-- `plots/<sample>/<sample>.swarm.{png,svg}`, per genome with elements: family against length, coloured by protein (the first protein of an element hitting several), one panel per molecule type and one of the NIRVs. The `--swarm_top_proteins` (default `12`) most frequent proteins of the genome get a colour each, the others are grey (`Other`).
+- `plots/<sample>/<sample>.swarm.html`, per genome with elements: an interactive swarm plot, family against length, coloured by protein (the first protein of an element hitting several), with a menu right of it choosing all elements, one molecule type or the NIRVs, and PNG and SVG export. The `--swarm_top_proteins` (default `12`) most frequent proteins of the genome get a colour each, the others are grey (`Other`).
 
 Check the setup with `-profile test_analysis` on the `--outdir` of a `-profile test` run: it reads that run's results (three genomes, one of them with elements: a mashtree tree, and the plots of the genome with elements).
 
@@ -86,12 +89,13 @@ Everything below is a `--step screening` parameter, so the same `prepare_inputs`
 
 ### Similarity search (`--search_mode`)
 
-Sets the index type (BLAST or DIAMOND) and the search of `align` and `filter` (EEfinder `-md`). `prepare_inputs` indexes the databases it downloads for this search, beside each FASTA; `screening` reuses an index found beside a FASTA and builds a missing one once per database/baits set, so a local database is best indexed beforehand (`eefinder get-databases -md`, or a first `eefinder screening prepare`).
+Sets the index type (BLAST, DIAMOND or MMseqs2) and the search of `align` and `filter` (EEfinder `-md`). `prepare_inputs` indexes the databases it downloads for this search, beside each FASTA; `screening` reuses an index found beside a FASTA and builds a missing one once per database/baits set, so a local database is best indexed beforehand (`eefinder get-databases -md`, or a first `eefinder screening prepare`).
 
-| Value                                                                                       | Search                                                                          |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `blastx` (default)                                                                          | BLAST. The reference path: its outputs match EEfinder's golden files.           |
-| `fast`, `mid-sensitive`, `sensitive`, `more-sensitive`, `very-sensitive`, `ultra-sensitive` | DIAMOND at that sensitivity, from fastest to most sensitive. Faster than BLAST. |
+| Value                                                                                       | Search                                                                                                                                  |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `blastx` (default)                                                                          | BLAST. The reference path: its outputs match EEfinder's golden files.                                                                   |
+| `fast`, `mid-sensitive`, `sensitive`, `more-sensitive`, `very-sensitive`, `ultra-sensitive` | DIAMOND at that sensitivity, from fastest to most sensitive. Faster than BLAST.                                                         |
+| `mmseqs`                                                                                    | MMseqs2 (`mmseqs easy-search`, BLOSUM62, sensitivity 7.5) on the ORFs of the six frames. Searches whole chromosomes with little memory. |
 
 ```bash
 nextflow run nf-core/evefinder -profile local,docker \
@@ -105,14 +109,14 @@ nextflow run nf-core/evefinder -profile local,docker \
 
 How the proteins compared against the databases are obtained, for both the viral and the host-bait searches (EEfinder `-tm`). Combine with any `--search_mode`.
 
-| Value               | Proteins                                                                   |
-| ------------------- | -------------------------------------------------------------------------- |
-| `default` (default) | Six-frame translation: `blastx` or `diamond blastx`.                       |
-| `gv`                | Genes predicted with pyrodigal-gv, aligned with `blastp`/`diamond blastp`. |
-| `rv`                | Genes predicted with pyrodigal-rv.                                         |
-| `gv-rv`             | Both predictions, merged with cd-hit (100% identity/coverage).             |
+| Value               | Proteins                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `default` (default) | Six-frame translation: `blastx` or `diamond blastx`.                               |
+| `gv`                | Genes predicted with pyrodigal-gv, aligned with `blastp`/`diamond blastp`/MMseqs2. |
+| `rv`                | Genes predicted with pyrodigal-rv.                                                 |
+| `gv-rv`             | Both predictions, merged with cd-hit (100% identity/coverage).                     |
 
-The prediction modes map the protein coordinates back to the genome, so the outputs keep the same format.
+The prediction modes map the protein coordinates back to the genome, so the outputs keep the same format. The proteins are predicted once, on the genome, by `align`, which passes them to `filter`: the host-bait search cuts them to the candidates instead of predicting again.
 
 ```yaml title="diamond_gv.yml"
 step: screening

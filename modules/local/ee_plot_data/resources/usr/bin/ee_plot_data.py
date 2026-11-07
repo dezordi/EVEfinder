@@ -3,7 +3,8 @@
 
 - `elements.tsv`: one row per element (length, molecule type, taxonomy, protein,
   NIRV: molecule type with RNA, not ending in -RT);
-- `genomes.tsv`: the number of elements of every sample, 0 included;
+- `genomes.tsv`: every sample's label (its name in the tree) and number of
+  elements, 0 included;
 - `krona/<sample>/<dataset>.txt`: Krona inputs, one dataset with every element,
   one per molecule type and one with the NIRVs.
 """
@@ -71,12 +72,17 @@ def safe_name(name):
 
 
 def krona_lines(elements):
-    """Count of each taxonomic path, ending at its last known rank."""
+    """Count of each taxonomic path, ending at its last known rank, then
+    `Unclassified <rank>` when short of the species, which Krona would leave in an
+    unnamed `[other]` wedge (an element hitting several viruses has their common
+    ancestor's taxonomy)."""
     paths = Counter()
     for element in elements:
         path = [element[rank] for rank in RANKS]
         while path and path[-1] == UNKNOWN:
             path.pop()
+        if path and len(path) < len(RANKS):
+            path.append(f"Unclassified {path[-1]}")
         paths[tuple(path)] += 1
     return ["\t".join([str(count), *path]) + "\n" for path, count in sorted(paths.items())]
 
@@ -97,6 +103,7 @@ def write_krona(sample, elements, outdir):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--samples", nargs="+", required=True, help="every sample of the samplesheet")
+    parser.add_argument("--labels", nargs="+", help="name of each sample in the tree (default: the sample)")
     parser.add_argument("--dir", default=".", help="directory holding the <sample>.EEs.{fa,tax.tsv} files")
     args = parser.parse_args()
 
@@ -114,9 +121,12 @@ def main():
         writer = csv.DictWriter(handle, COLUMNS, delimiter="\t", lineterminator="\n")
         writer.writeheader()
         writer.writerows(all_elements)
+    labels = args.labels or args.samples
+    if len(labels) != len(args.samples):
+        parser.error("--labels needs one label per sample")
     with open("genomes.tsv", "w") as handle:
-        handle.write("sample\telements\n")
-        handle.writelines(f"{sample}\t{count}\n" for sample, count in counts.items())
+        handle.write("sample\tlabel\telements\n")
+        handle.writelines(f"{sample}\t{label}\t{counts[sample]}\n" for sample, label in zip(args.samples, labels))
 
 
 if __name__ == "__main__":

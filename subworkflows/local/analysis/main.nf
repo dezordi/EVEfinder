@@ -8,9 +8,10 @@ include { PLOTS     } from '../plots'
 workflow ANALYSIS {
 
     take:
-    ch_samplesheet   // channel: [ meta, genome, baits, db_fasta, db_metadata ]
+    ch_samplesheet   // channel: [ meta, genome, baits, db_fasta, db_metadata ]; meta.species optional
     screening_outdir // string : the --outdir of the screening run
     skip_phylogeny   // boolean
+    phylogeny_tree   // string : Newick tree used instead of mashtree, or null
     skip_plots       // boolean
 
     main:
@@ -20,8 +21,10 @@ workflow ANALYSIS {
         ? skipped_file.readLines().drop(1).collect { line -> line.tokenize('\t')[0] }
         : []
 
-    // [ meta, genome, EEs.fa, EEs.tax.tsv ], [] for a genome without elements
-    def ch_genomes = ch_samplesheet.map { meta, genome, _baits, _db, _mt ->
+    // [ meta, genome, EEs.fa, EEs.tax.tsv ], [] for a genome without elements;
+    // meta.label names the genome in the tree and the plots: <Species_name>_<sample>
+    def ch_genomes = ch_samplesheet.map { sample_meta, genome, _baits, _db, _mt ->
+        def meta = sample_meta + [label: sample_meta.species ? "${sample_meta.species.replaceAll(/[^A-Za-z0-9.-]+/, '_')}_${sample_meta.id}" : sample_meta.id]
         def fasta = file("${screening}/${meta.id}/${meta.id}.EEs.fa")
         def taxonomy = file("${screening}/${meta.id}/${meta.id}.EEs.tax.tsv")
         if (fasta.exists() && taxonomy.exists()) {
@@ -34,7 +37,10 @@ workflow ANALYSIS {
     }
 
     def ch_tree = channel.empty()
-    if (!skip_phylogeny) {
+    if (!skip_phylogeny && phylogeny_tree) {
+        ch_tree = channel.value(file(phylogeny_tree, checkIfExists: true))
+    }
+    else if (!skip_phylogeny) {
         PHYLOGENY(ch_genomes.map { meta, genome, _fasta, _taxonomy -> [meta, genome] })
         ch_tree = PHYLOGENY.out.tree
     }

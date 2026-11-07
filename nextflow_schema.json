@@ -297,9 +297,10 @@
                         "sensitive",
                         "more-sensitive",
                         "very-sensitive",
-                        "ultra-sensitive"
+                        "ultra-sensitive",
+                        "mmseqs"
                     ],
-                    "description": "Similarity search: BLAST (`blastx`) or a DIAMOND sensitivity (eefinder `-md`).",
+                    "description": "Similarity search: BLAST (`blastx`), a DIAMOND sensitivity or MMseqs2 (`mmseqs`) (eefinder `-md`).",
                     "fa_icon": "fas fa-search"
                 },
                 "translation_method": {
@@ -523,6 +524,14 @@
                     "type": "boolean",
                     "description": "Do not build the genome phylogeny.",
                     "fa_icon": "fas fa-forward"
+                },
+                "phylogeny_tree": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Newick tree of the genomes to plot, instead of building one with mashtree.",
+                    "help_text": "One leaf per sample, named after its `sample` or its label (`<Species_name>_<sample>` when the samplesheet has a `species`). Genomes missing from the tree are listed below it in the heatmap. Ignored with `--skip_phylogeny`.",
+                    "fa_icon": "fas fa-tree"
                 },
                 "skip_plots": {
                     "type": "boolean",

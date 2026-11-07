@@ -23,7 +23,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 <summary>Output files</summary>
 
 - `prepare_inputs/`
-  - `samplesheet.csv`: the samplesheet for `--step screening`, pointing to the files below.
+  - `samplesheet.csv`: the samplesheet for `--step screening`, pointing to the files below, with each host's species name and lineage (NCBI Taxonomy, in EEfinder's `r__;k__;p__;c__;o__;f__;g__;s__` format, the domain in the `r__` field).
   - `genomes/`: each genome, as downloaded from NCBI (`<accession>/ncbi_dataset/data/<accession>/*.fna`, plus its GFF3) or ENA (`<accession>.fasta.gz`).
   - `host_baits/host_<taxid>.{fa,log,tracking.tsv,clstr}` and the search index of the FASTA: the host protein baits of each host taxon (`eefinder get-databases host`).
   - `host_baits/host_taxa.tsv`: the taxon each host's baits come from, and its rank (`requested` for the host itself).
@@ -52,7 +52,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 <summary>Output files</summary>
 
 - `phylogeny/`
-  - `genomes.nwk`: the mashtree tree of the genomes (Newick), one leaf per `sample`. Not written with fewer than 3 genomes.
+  - `genomes.nwk`: the mashtree tree of the genomes (Newick), one leaf per sample, named `<Species_name>_<sample>` when the samplesheet has a `species` (`Anopheles_darlingi_GCF_943734745.1`), the sample otherwise. Not written with fewer than 3 genomes, nor with `--phylogeny_tree`.
   - `genomes.tsv`: the Mash distance between every pair of genomes.
 
 </details>
@@ -63,11 +63,11 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 <summary>Output files</summary>
 
 - `plots/`
-  - `phylogeny_heatmap.html`: the genome tree beside the number of elements of each genome per taxon, with taxonomic level, molecule type and NIRV filters and PNG/SVG export (details in [usage](usage.md#--step-analysis)).
+  - `phylogeny_heatmap.html`: the genome tree beside the number of elements of each genome per taxon, with, right of the plot, a menu choosing the taxonomic level and checkboxes choosing the virus groups counted (each molecule type, and the NIRVs), and PNG and SVG export (details in [usage](usage.md#--step-analysis)).
   - `elements.tsv`: the table every plot is drawn from, one row per element: `sample`, `element_id`, `length`, `molecule_type`, `realm` to `species` (`Unk` when unknown), `protein` (the first of the element's proteins) and `nirv` (`true`/`false`).
-  - `genomes.tsv`: every genome of the samplesheet and its number of elements, 0 included.
-  - `<sample>/<sample>.krona.html`: Krona chart of a genome's elements, one dataset of all of them, one per molecule type and one of the NIRVs.
-  - `<sample>/<sample>.swarm.{png,svg}`: swarm plot of a genome's elements, family against length, coloured by protein, one panel per molecule type and one of the NIRVs.
+  - `genomes.tsv`: every genome of the samplesheet, its name in the tree and the heatmap (`label`) and its number of elements, 0 included.
+  - `<sample>/<sample>.krona.html`: Krona chart of a genome's elements, one dataset of all of them, one per molecule type and one of the NIRVs; an element whose taxonomy stops above the species (the common ancestor of the viruses it hits) is in an `Unclassified <taxon>` wedge under its last known rank.
+  - `<sample>/<sample>.swarm.html`: offline, interactive swarm plot of a genome's elements, family against length, coloured by protein, with a menu right of it choosing the elements (all, one molecule type or the NIRVs), PNG and SVG export, and each element's id, protein, genus and species on hover.
 
 </details>
 

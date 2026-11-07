@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory() as tmp:
     os.chdir(tmp)
     Path("s1.EEs.tax.tsv").write_text(TAX)
     Path("s1.EEs.fa").write_text(FASTA)
-    sys.argv = ["ee_plot_data.py", "--samples", "s1", "s2"]
+    sys.argv = ["ee_plot_data.py", "--samples", "s1", "s2", "--labels", "Aedes_aegypti_s1", "s2"]
     ee_plot_data.main()
 
     rows = list(csv.DictReader(open("elements.tsv"), delimiter="\t"))
@@ -49,12 +49,12 @@ with tempfile.TemporaryDirectory() as tmp:
     assert [r["nirv"] for r in rows] == ["true", "false", "true", "false"]
     assert rows[0]["order"] == "Unk" and rows[1]["order"] == "Ortervirales"
     # a genome without elements is still listed
-    assert Path("genomes.tsv").read_text() == "sample\telements\ns1\t4\ns2\t0\n"
+    assert Path("genomes.tsv").read_text() == "sample\tlabel\telements\ns1\tAedes_aegypti_s1\t4\ns2\ts2\t0\n"
 
     krona = Path("krona/s1")
     assert sorted(p.name for p in krona.iterdir()) == ["NIRV.txt", "Unk.txt", "all.txt", "ssRNA+.txt", "ssRNA-RT.txt"]
-    # a path ends at its last known rank, and identical paths are counted together
-    assert (krona / "NIRV.txt").read_text() == "2\tRiboviria\tOrthornavirae\tUnk\tUnk\tUnk\tFlaviviridae\n"
+    # a path ends at its last known rank, then Unclassified, and identical paths are counted together
+    assert (krona / "NIRV.txt").read_text() == "2\tRiboviria\tOrthornavirae\tUnk\tUnk\tUnk\tFlaviviridae\tUnclassified Flaviviridae\n"
     assert not Path("krona/s2").exists()
 
 print("ee_plot_data: all checks passed")

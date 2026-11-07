@@ -30,6 +30,10 @@
 
   > Buchfink B, Xie C, Huson DH. Fast and sensitive protein alignment using DIAMOND. Nat Methods. 2015;12(1):59-60. doi: 10.1038/nmeth.3176.
 
+- [MMseqs2](https://doi.org/10.1038/nbt.3988)
+
+  > Steinegger M, Söding J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nat Biotechnol. 2017;35(11):1026-1028. doi: 10.1038/nbt.3988.
+
 - [BEDTools](https://doi.org/10.1093/bioinformatics/btq033)
 
   > Quinlan AR, Hall IM. BEDTools: a flexible suite of utilities for comparing genomic features. Bioinformatics. 2010;26(6):841-2. doi: 10.1093/bioinformatics/btq033.
@@ -65,14 +69,6 @@
 - [Plotly](https://plot.ly)
 
   > Plotly Technologies Inc. Collaborative data science. Montréal, QC: Plotly Technologies Inc.; 2015. https://plot.ly
-
-- [Matplotlib](https://doi.org/10.1109/MCSE.2007.55)
-
-  > Hunter JD. Matplotlib: A 2D graphics environment. Comput Sci Eng. 2007;9(3):90-95. doi: 10.1109/MCSE.2007.55.
-
-- [seaborn](https://doi.org/10.21105/joss.03021)
-
-  > Waskom ML. seaborn: statistical data visualization. J Open Source Softw. 2021;6(60):3021. doi: 10.21105/joss.03021.
 
 - [MultiQC](https://pubmed.ncbi.nlm.nih.gov/27312411/)
 

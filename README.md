@@ -73,7 +73,7 @@ nextflow run nf-core/evefinder -profile docker \
    --outdir <OUTDIR>
 ```
 
-The `screening` samplesheet has the columns `sample,taxid,genome,baits,db_fasta,db_metadata`, so it can also be written by hand. Every `eefinder get-databases` and `eefinder screening` option is a pipeline parameter (see `nextflow_schema.json`).
+The `screening` samplesheet has the columns `sample,taxid,species,taxonomy,genome,baits,db_fasta,db_metadata` (`taxid`, `species` and `taxonomy` optional), so it can also be written by hand. Every `eefinder get-databases` and `eefinder screening` option is a pipeline parameter (see `nextflow_schema.json`).
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/running/run-pipelines#using-parameter-files).
@@ -90,7 +90,7 @@ nextflow run nf-core/evefinder -profile local,docker --step screening --input re
 ```
 
 - On macOS the tasks run inside a Linux VM (Docker Desktop or Colima), so the VM's limits are what counts: `conf/local.config` follows them, not the Mac's. Raise them in Docker Desktop's Settings > Resources, or with `colima stop && colima start --cpu 16 --memory 20`, then edit `conf/local.config` to match.
-- The EEfinder image (`dezordi/eefinder:2.0.0-dev`, pinned by digest) is `linux/amd64` only; on Apple Silicon it runs through emulation (Rosetta), with a platform warning in the task logs.
+- The EEfinder image (`dezordi/eefinder:2.0.0-dev`) is `linux/amd64` only; on Apple Silicon it runs through emulation (Rosetta), with a platform warning in the task logs.
 - The VM only mounts shared folders (`/Users` in Docker Desktop, your home directory in Colima by default): launch from, and write `--outdir`/`-work-dir` to, a path under one of them, not `/tmp`.
 
 **Singularity / Apptainer** (Linux, HPC):

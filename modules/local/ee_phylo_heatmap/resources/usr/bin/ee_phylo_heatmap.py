@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Write an offline HTML of the genome tree beside a heatmap of elements per
-genome and taxon, filtered in the browser by taxonomic level, molecule type and
-NIRV-only. Without a tree, the genomes are in alphabetical order.
+genome and taxon. Right of the plot, a menu chooses the taxonomic level and
+checkboxes the virus groups (molecule types and NIRVs) whose elements are
+counted. Without a tree, the genomes are in alphabetical order.
 """
 
 import argparse
 import csv
 import json
 import sys
+from html import escape
+
+import plotly.graph_objects as go
 
 LEVELS = ["realm", "kingdom", "phylum", "class", "order", "family", "genus"]
 
@@ -45,161 +49,152 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--elements", required=True, help="elements.tsv from ee_plot_data.py")
     parser.add_argument("--genomes", required=True, help="genomes.tsv from ee_plot_data.py")
-    parser.add_argument("--tree", help="Newick tree of the genomes, one leaf per sample")
+    parser.add_argument("--tree", help="Newick tree of the genomes, one leaf per sample, named by its label")
     parser.add_argument("--output", default="phylogeny_heatmap.html")
     args = parser.parse_args()
 
-    from plotly.offline import get_plotlyjs
-
-    samples = [row["sample"] for row in csv.DictReader(open(args.genomes), delimiter="\t")]
+    label = {row["sample"]: row.get("label") or row["sample"] for row in csv.DictReader(open(args.genomes), delimiter="\t")}
+    sample_of = {name: sample for sample, name in label.items()}
     tree = None
     if args.tree:
         leaves, xs, ys = tree_layout(args.tree)
-        missing = sorted(set(samples) - set(leaves))
+        samples = [sample_of.get(leaf, leaf) for leaf in leaves]
+        missing = sorted(set(label) - set(samples))
         if missing:
             print(f"WARNING: genomes missing from the tree, listed below it: {', '.join(missing)}", file=sys.stderr)
-        genomes, tree = leaves + missing, {"x": xs, "y": ys}
+        samples, tree = samples + missing, (xs, ys)
     else:
-        genomes = sorted(samples)
+        samples = sorted(label, key=lambda sample: label[sample])
 
-    index = {genome: i for i, genome in enumerate(genomes)}
-    elements = [
-        [index[row["sample"]], row["molecule_type"], row["nirv"] == "true", *(row[level] for level in LEVELS)]
-        for row in csv.DictReader(open(args.elements), delimiter="\t")
-    ]
-    data = {"genomes": genomes, "levels": LEVELS, "elements": elements, "tree": tree}
-    html = (
-        TEMPLATE.replace("__PLOTLYJS__", get_plotlyjs())
-        .replace("__DATA__", json.dumps(data, separators=(",", ":")).replace("</", "<\\/"))
+    index = {sample: i for i, sample in enumerate(samples)}
+    genomes = [label.get(sample, sample) for sample in samples]
+    elements = list(csv.DictReader(open(args.elements), delimiter="\t"))
+    write_html(elements, index, genomes, tree, args.output)
+
+
+def write_html(elements, index, genomes, tree, path):
+    n = len(genomes)
+    tree_width = 260 if tree else 0
+    # without the tree on the left, the first rotated taxon label needs room
+    # the bottom margin follows the longest taxon label, set in the browser
+    # the right margin holds the genome names, the filters sit right of it
+    margin = {"l": 40 if tree else 110, "r": 30 + 7 * max(map(len, genomes), default=0), "t": 130, "b": 220}
+    # one heatmap, recounted in the browser from the chosen level and virus groups
+    traces = [go.Heatmap(
+        z=[[]], hoverinfo="text", xaxis="x2", yaxis="y", xgap=1, ygap=1, zmin=0,
+        colorscale=[[0, "#ffffff"], [0.0001, "#fde0c5"], [0.5, "#eb7f54"], [1, "#7a0403"]],
+        colorbar=dict(title=dict(text="EVEs", side="top"), orientation="h", x=1, xanchor="right", y=1.01, yanchor="bottom", thickness=12),
+    )]
+    if tree:
+        traces.append(go.Scatter(x=tree[0], y=tree[1], mode="lines", xaxis="x", yaxis="y", line=dict(color="#444", width=1), hoverinfo="skip"))
+    fig = go.Figure(traces)
+    fig.update_layout(
+        height=max(300, 24 * n + margin["t"] + margin["b"]), margin=margin, showlegend=False,
+        plot_bgcolor="#fff", paper_bgcolor="#fff", title=dict(x=0, xanchor="left", pad=dict(l=40), font=dict(size=16)),
+        yaxis=dict(range=[n - 0.5, -0.5], tickvals=list(range(n)), ticktext=genomes, side="right", anchor="x2", showgrid=False, zeroline=False),
+        xaxis=dict(visible=False),
+        xaxis2=dict(tickangle=-60, showgrid=False, zeroline=False, automargin=False),
     )
-    with open(args.output, "w") as handle:
-        handle.write(html)
+    plot = fig.to_html(
+        full_html=False, include_plotlyjs=True, div_id="phylogeny_heatmap",
+        config={"displaylogo": False, "modeBarButtonsToRemove": ["select2d", "lasso2d"], "toImageButtonOptions": {"filename": "phylogeny_heatmap", "scale": 2}},
+    )
+
+    # virus groups: each molecule type, then the NIRVs; an element is shown when any of its groups is ticked
+    groups = sorted({e["molecule_type"] for e in elements})
+    nirv = any(e["nirv"] == "true" for e in elements)
+    levels = "".join(f'<option{" selected" if level == "family" else ""}>{level}</option>' for level in LEVELS)
+    boxes = "".join(
+        f'<label><input type="checkbox" value="{escape(group)}"{"" if is_nirv else " checked"}> {escape(group)}</label>'
+        for group, is_nirv in [(g, False) for g in groups] + ([("NIRV", True)] if nirv else [])
+    )
+    data = {
+        "levels": LEVELS, "genomes": genomes, "tree": bool(tree), "treeWidth": tree_width, "margin": margin,
+        # [genome row, molecule type, NIRV, realm ... genus]
+        "elements": [[index[e["sample"]], e["molecule_type"], e["nirv"] == "true"] + [e[level] for level in LEVELS] for e in elements],
+    }
+    with open(path, "w") as out:
+        out.write(PAGE.format(plot=plot, levels=levels, boxes=boxes, data=json.dumps(data).replace("</", "<\\/")))
 
 
-TEMPLATE = """<!doctype html>
-<html lang="en">
+PAGE = """<!DOCTYPE html>
+<html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EVEs per genome</title>
+<title>Elements per genome and taxon</title>
 <style>
-  body { margin: 16px; font: 14px/1.4 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #222; background: #fff; }
-  h1 { font-size: 18px; margin: 0 0 12px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: flex-start; margin-bottom: 8px; }
-  fieldset { border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; margin: 0; }
-  legend { font-weight: 600; padding: 0 4px; }
-  label { margin-right: 10px; white-space: nowrap; }
-  button { font: inherit; font-size: 12px; margin-left: 6px; }
-  #summary { color: #555; margin: 4px 0 0; }
-  #plot { overflow-x: auto; }
+body {{ margin: 0; background: #fff; color: #444; font: 13px "Open Sans", verdana, arial, sans-serif; }}
+.page {{ display: flex; align-items: flex-start; }}
+.controls {{ display: flex; flex-direction: column; gap: 12px; padding: 130px 20px 20px 0; flex: none; }}
+fieldset {{ border: 1px solid #ddd; border-radius: 4px; padding: 6px 12px 8px; margin: 0; }}
+legend {{ font-weight: 600; padding: 0 4px; }}
+select {{ font: inherit; }}
+#groups label {{ display: block; margin: 2px 0; white-space: nowrap; cursor: pointer; }}
 </style>
-<script>__PLOTLYJS__</script>
 </head>
 <body>
-<h1>EVEs per genome</h1>
+<div class="page">
+{plot}
 <div class="controls">
-  <fieldset><legend>Taxonomic level</legend><select id="level"></select></fieldset>
-  <fieldset><legend>Molecule type <button id="all">all</button><button id="none">none</button></legend><div id="types"></div></fieldset>
-  <fieldset><legend>Filter</legend><label><input type="checkbox" id="nirv"> NIRVs only (non-retroviral RNA viruses)</label></fieldset>
+<fieldset><legend>Taxonomic level</legend><select id="level">{levels}</select></fieldset>
+<fieldset id="groups"><legend>Virus groups</legend>{boxes}</fieldset>
 </div>
-<p id="summary"></p>
-<div id="plot"></div>
+</div>
 <script>
-const D = __DATA__;
-const plot = document.getElementById("plot");
-const levelSelect = document.getElementById("level");
-const typesBox = document.getElementById("types");
-const nirvBox = document.getElementById("nirv");
-
-for (const level of D.levels) {
-  levelSelect.add(new Option(level, level, false, level === "family"));
-}
-const typeCounts = {};
-for (const e of D.elements) typeCounts[e[1]] = (typeCounts[e[1]] || 0) + 1;
-for (const type of Object.keys(typeCounts).sort()) {
-  const label = document.createElement("label");
-  label.innerHTML = '<input type="checkbox" checked> ';
-  label.firstChild.value = type;
-  label.append(`${type} (${typeCounts[type]})`);
-  typesBox.append(label);
-}
-const typeInputs = () => [...typesBox.querySelectorAll("input")];
-
-function counts() {
-  const li = D.levels.indexOf(levelSelect.value);
-  const types = new Set(typeInputs().filter(i => i.checked).map(i => i.value));
-  const byTaxon = new Map();
-  let total = 0;
-  for (const e of D.elements) {
-    if (!types.has(e[1]) || (nirvBox.checked && !e[2])) continue;
-    const taxon = e[3 + li];
-    if (!byTaxon.has(taxon)) byTaxon.set(taxon, new Array(D.genomes.length).fill(0));
-    byTaxon.get(taxon)[e[0]] += 1;
-    total += 1;
-  }
-  const sum = a => a.reduce((s, v) => s + v, 0);
-  const taxa = [...byTaxon.keys()].sort((a, b) => sum(byTaxon.get(b)) - sum(byTaxon.get(a)) || a.localeCompare(b));
-  const z = D.genomes.map((_, g) => taxa.map(t => byTaxon.get(t)[g]));
-  return { taxa, z, total };
-}
-
-function render() {
-  const { taxa, z, total } = counts();
-  const n = D.genomes.length;
-  const treeWidth = D.tree ? 260 : 0;
-  const width = treeWidth + Math.max(taxa.length, 1) * 26;
-  // without the tree on the left, the first rotated taxon label needs room
-  const margin = { l: D.tree ? 20 : 110, r: 240, t: 90, b: 220 };
-  const yaxis = {
-    range: [n - 0.5, -0.5], tickvals: D.genomes.map((_, i) => i), ticktext: D.genomes,
-    side: "right", anchor: "x2", showgrid: false, zeroline: false, ticks: "",
-  };
-  const traces = [{
-    type: "heatmap", x: taxa, y: D.genomes.map((_, i) => i), z, xaxis: "x2", yaxis: "y",
-    customdata: D.genomes.map(g => taxa.map(() => g)), xgap: 1, ygap: 1, zmin: 0,
-    colorscale: [[0, "#ffffff"], [0.0001, "#fde0c5"], [0.5, "#eb7f54"], [1, "#7a0403"]],
-    hovertemplate: "%{customdata}<br>%{x}: %{z}<extra></extra>",
-    colorbar: { title: { text: "EVEs", side: "top" }, orientation: "h", x: 1, xanchor: "right", y: 1.01, yanchor: "bottom", len: Math.min(1, 200 / width), thickness: 12 },
-  }];
-  const layout = {
-    width: width + margin.l + margin.r, height: Math.max(300, 24 * n + margin.t + margin.b), margin,
-    plot_bgcolor: "#fff", paper_bgcolor: "#fff", showlegend: false, yaxis,
-    xaxis2: { domain: [treeWidth ? (treeWidth - 10) / width : 0, 1], tickangle: -60, showgrid: false, zeroline: false, automargin: false },
-    annotations: total ? [] : [{ text: "No elements with these filters", xref: "paper", yref: "paper", x: 0.5, y: 0.5, showarrow: false }],
-  };
-  if (D.tree) {
-    traces.push({ type: "scatter", mode: "lines", x: D.tree.x, y: D.tree.y, xaxis: "x", yaxis: "y", line: { color: "#444", width: 1 }, hoverinfo: "skip" });
-    layout.xaxis = { domain: [0, (treeWidth - 30) / width], visible: false };
-  }
-  const name = `eves_${levelSelect.value}${nirvBox.checked ? "_nirv" : ""}`;
-  const download = format => gd => Plotly.downloadImage(gd, { format, filename: name, width: layout.width, height: layout.height, scale: format === "png" ? 2 : 1 });
-  const drawn = Plotly.react(plot, traces, layout, {
-    displaylogo: false, responsive: false,
-    modeBarButtonsToRemove: ["toImage", "select2d", "lasso2d"],
-    modeBarButtonsToAdd: [
-      { name: "Download PNG", icon: Plotly.Icons.camera, click: download("png") },
-      { name: "Download SVG", icon: Plotly.Icons.disk, click: download("svg") },
-    ],
-  });
-  document.getElementById("summary").textContent =
-    `${total} elements in ${taxa.length} ${levelSelect.value} taxa, ${n} genomes` + (D.tree ? "" : " (no tree: alphabetical order)");
-  return drawn;
-}
-
-// Plotly.react is asynchronous: a redraw started before the last one ends leaves the plot empty
-let drawing = Promise.resolve();
-const draw = () => (drawing = drawing.then(render));
-
-levelSelect.addEventListener("change", draw);
-nirvBox.addEventListener("change", draw);
-typesBox.addEventListener("change", draw);
-document.getElementById("all").onclick = () => { typeInputs().forEach(i => (i.checked = true)); draw(); };
-document.getElementById("none").onclick = () => { typeInputs().forEach(i => (i.checked = false)); draw(); };
+const D = {data};
+const gd = document.getElementById("phylogeny_heatmap");
+const level = document.getElementById("level");
+const boxes = Array.from(document.querySelectorAll("#groups input"));
+function draw() {{
+  const col = 3 + D.levels.indexOf(level.value);
+  const on = new Set(boxes.filter(b => b.checked).map(b => b.value));
+  const shown = D.elements.filter(e => on.has(e[1]) || (e[2] && on.has("NIRV")));
+  const counts = new Map();
+  for (const e of shown) {{
+    if (!counts.has(e[col])) counts.set(e[col], new Array(D.genomes.length).fill(0));
+    counts.get(e[col])[e[0]]++;
+  }}
+  const total = new Map(Array.from(counts, ([t, c]) => [t, c.reduce((a, b) => a + b, 0)]));
+  const taxa = Array.from(counts.keys()).sort((a, b) => total.get(b) - total.get(a) || (a < b ? -1 : a > b ? 1 : 0));
+  const z = D.genomes.map((_, g) => taxa.map(t => counts.get(t)[g]));
+  const text = D.genomes.map((name, g) => taxa.map(t => name + " | " + t + ": " + counts.get(t)[g]));
+  const width = D.treeWidth + Math.max(taxa.length, 1) * 26;
+  const ticks = taxa.map((_, i) => i);
+  // room for the longest label, rotated 60 degrees
+  const bottom = 30 + Math.ceil(6.2 * Math.max(0, ...taxa.map(t => t.length)));
+  const height = 24 * D.genomes.length + D.margin.t + bottom;
+  // the div keeps the first layout's size otherwise
+  gd.style.height = height + "px";
+  // at least as wide as the title; the extra width goes to the right margin
+  const full = Math.max(width + D.margin.l + D.margin.r, 520);
+  gd.style.width = full + "px";
+  Plotly.update(gd, {{
+    x: [ticks], y: [D.genomes.map((_, g) => g)], z: [z], text: [text],
+    zmax: [Math.max(1, ...z.map(row => Math.max(0, ...row)))], "colorbar.len": [Math.min(1, 200 / width)],
+  }}, {{
+    width: full, "margin.r": full - width - D.margin.l,
+    height: height, "margin.b": bottom,
+    "xaxis2.domain": [D.tree ? (D.treeWidth - 10) / width : 0, 1],
+    "xaxis2.tickvals": ticks, "xaxis2.ticktext": taxa, "xaxis2.range": [-0.5, taxa.length - 0.5],
+    "xaxis.domain": D.tree ? [0, (D.treeWidth - 30) / width] : [0, 0],
+    "title.text": "<b>Endogenous viral elements per genome and taxon</b><br><span style='font-size:13px'>" + shown.length + " elements in " + taxa.length + " " + level.value + " taxa, " + D.genomes.length + " genomes" + (D.tree ? "" : " (no tree: alphabetical order)") + "</span>",
+  }}, [0]);
+}}
+// PNG from the camera button, SVG from this one
+Plotly.react(gd, gd.data, gd.layout, Object.assign({{}}, gd._context, {{
+  modeBarButtonsToAdd: [{{
+    name: "Download plot as an SVG", icon: Plotly.Icons.disk,
+    click: g => Plotly.downloadImage(g, {{format: "svg", filename: "phylogeny_heatmap"}}),
+  }}],
+}}));
+level.addEventListener("change", draw);
+boxes.forEach(b => b.addEventListener("change", draw));
 draw();
 </script>
 </body>
 </html>
 """
+
 
 if __name__ == "__main__":
     main()

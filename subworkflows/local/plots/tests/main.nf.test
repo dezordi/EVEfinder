@@ -24,8 +24,11 @@ nextflow_workflow {
         when {
             workflow {
                 """
-                input[0] = ${genomes}
-                input[1] = channel.of('(Ae_aeg_Aag2_ctg_1913:0.5,(Hsap_chr22_40kb:0.2,SARS-CoV-2:0.2):0.3);').collectFile(name: 'genomes.nwk')
+                // a genome named after its species in the tree (meta.label, set by ANALYSIS)
+                input[0] = ${genomes}.map { meta, genome, fasta, taxonomy ->
+                    [meta.id == 'Ae_aeg_Aag2_ctg_1913' ? meta + [label: 'Aedes_aegypti_Ae_aeg_Aag2_ctg_1913'] : meta, genome, fasta, taxonomy]
+                }
+                input[1] = channel.of('(Aedes_aegypti_Ae_aeg_Aag2_ctg_1913:0.5,(Hsap_chr22_40kb:0.2,SARS-CoV-2:0.2):0.3);').collectFile(name: 'genomes.nwk')
                 """
             }
         }
@@ -34,10 +37,11 @@ nextflow_workflow {
             def heatmap = path(workflow.out.heatmap[0]).text
             assertAll(
                 { assert workflow.success },
-                // rows in the order of the tree's leaves
-                { assert heatmap.contains('"genomes":["Ae_aeg_Aag2_ctg_1913","Hsap_chr22_40kb","SARS-CoV-2"]') },
-                { assert heatmap.contains('"tree":{"x":') },
-                { assert path(workflow.out.genomes[0]).text == "sample\telements\nAe_aeg_Aag2_ctg_1913\t42\nHsap_chr22_40kb\t0\nSARS-CoV-2\t0\n" },
+                // rows in the order of the tree's leaves, named by their label
+                { assert heatmap.contains('"ticktext":["Aedes_aegypti_Ae_aeg_Aag2_ctg_1913","Hsap_chr22_40kb","SARS-CoV-2"]') },
+                // the tree is the only line trace
+                { assert heatmap.contains('"mode":"lines"') },
+                { assert path(workflow.out.genomes[0]).text == "sample\tlabel\telements\nAe_aeg_Aag2_ctg_1913\tAedes_aegypti_Ae_aeg_Aag2_ctg_1913\t42\nHsap_chr22_40kb\tHsap_chr22_40kb\t0\nSARS-CoV-2\tSARS-CoV-2\t0\n" },
                 { assert path(workflow.out.krona[0][1]).text.contains('<dataset>NIRV</dataset>') },
                 { assert snapshot(
                     workflow.out.elements,
@@ -66,7 +70,7 @@ nextflow_workflow {
             def heatmap = path(workflow.out.heatmap[0]).text
             assertAll(
                 { assert workflow.success },
-                { assert heatmap.contains('"tree":null') },
+                { assert !heatmap.contains('"mode":"lines"') },
                 { assert workflow.out.krona.size() == 1 },
                 { assert workflow.out.swarm.size() == 1 }
             )

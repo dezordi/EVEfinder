@@ -18,6 +18,16 @@
                 "errorMessage": "Host taxon id must be an integer",
                 "meta": ["taxid"]
             },
+            "species": {
+                "type": "string",
+                "errorMessage": "Host species name",
+                "meta": ["species"]
+            },
+            "taxonomy": {
+                "type": "string",
+                "errorMessage": "Host lineage, in EEfinder's format (r__...;k__...;...;s__...)",
+                "meta": ["taxonomy"]
+            },
             "genome": {
                 "type": "string",
                 "format": "file-path",

@@ -6,10 +6,16 @@ def versionCommands(List used) {
         'blast'       : "blastx -version | sed '1!d;s/.* //;s/+\$//'",
         'cd-hit'      : "cd-hit -h | head -n 1 | sed 's/^.*CD-HIT version //;s/ (built.*//'",
         'diamond'     : "diamond version | sed 's/.* //'",
+        'mmseqs2'     : "mmseqs version",
         'pyrodigal-gv': "python -c 'import pyrodigal_gv; print(pyrodigal_gv.__version__)'",
         'pyrodigal-rv': "python -c 'import pyrodigal_rv; print(pyrodigal_rv.__version__)'",
     ]
     return commands.collectEntries { tool, command -> [tool, tool in used ? command : 'true'] }
+}
+
+// Tool of a `-md` search mode: BLAST, MMseqs2, or DIAMOND (any sensitivity)
+def searchTool(mode) {
+    return [blastx: 'blast', mmseqs: 'mmseqs2'].get(mode, 'diamond')
 }
 
 // Tools the similarity search runs for the `-md` and `-tm` options in `args`
@@ -17,7 +23,7 @@ def searchTools(args) {
     def text = args ?: ''
     def mode = (text =~ /(?:-md|--mode)[\s=]+(\S+)/).with { m -> m.find() ? m.group(1) : 'blastx' }
     def method = (text =~ /(?:-tm|--translation_method)[\s=]+(\S+)/).with { m -> m.find() ? m.group(1) : 'default' }
-    def tools = [mode == 'blastx' ? 'blast' : 'diamond']
+    def tools = [searchTool(mode)]
     if( method in ['gv', 'gv-rv'] ) {
         tools << 'pyrodigal-gv'
     }
